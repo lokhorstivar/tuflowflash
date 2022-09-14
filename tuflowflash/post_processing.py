@@ -220,7 +220,8 @@ class ProcessFlash:
         for index, row in result_ts_uuids.iterrows():
             timeserie = self.create_post_element(results_dataframe[row["po_name"]])
             url = TIMESERIES_URL + row["ts_uuid"] + "/events/"
-            requests.delete(url=url, headers=headers)
+            r = requests.delete(url=url, headers=headers)
+            print(r.json())
             r = requests.post(url=url, data=json.dumps(timeserie), headers=headers)
             print(r.json())
 
