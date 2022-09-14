@@ -221,9 +221,7 @@ class ProcessFlash:
             timeserie = self.create_post_element(results_dataframe[row["po_name"]])
             url = TIMESERIES_URL + row["ts_uuid"] + "/events/"
             r = requests.delete(url=url, headers=headers)
-            print(r)
             r = requests.post(url=url, data=json.dumps(timeserie), headers=headers)
-            print(r)
 
     def NC_to_tiffs(self, Output_folder):
         nc_data_obj = nc.Dataset(self.settings.netcdf_rainfall_file)
@@ -297,7 +295,6 @@ class ProcessFlash:
             file = {"file": open(file, "rb")}
             data = {"timestamp": lizard_timestamp}
             r = requests.post(url=url, data=data, files=file, headers=headers)
-            print(r)
 
             try:
                 r.raise_for_status()
