@@ -183,7 +183,7 @@ class ProcessFlash:
             target_ds = None
         return
 
-    def create_post_element(self, series):
+    def create_post_element(self, series,shift):
         data = []
         aus_now = datetime.datetime.now(pytz.timezone("Australia/Sydney"))
         timezone_stamp = (
@@ -191,7 +191,7 @@ class ProcessFlash:
         )
         for index, value in series.iteritems():
             data.append(
-                {"time": index.isoformat() + timezone_stamp, "value": str(value)}
+                {"time": index.isoformat() + timezone_stamp, "value": str(value+shift)}
             )
         return data
 
@@ -218,7 +218,7 @@ class ProcessFlash:
             ] = self.settings.reference_time + datetime.timedelta(hours=row["Time"])
         results_dataframe.set_index("datetime", inplace=True)
         for index, row in result_ts_uuids.iterrows():
-            timeserie = self.create_post_element(results_dataframe[row["po_name"]])
+            timeserie = self.create_post_element(results_dataframe[row["po_name"]],row["shift"])
             url = TIMESERIES_URL + row["ts_uuid"] + "/events/"
             r = requests.delete(url=url, headers=headers)
             r = requests.post(url=url, data=json.dumps(timeserie), headers=headers)
