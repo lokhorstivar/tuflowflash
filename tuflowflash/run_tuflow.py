@@ -95,7 +95,7 @@ class TuflowSimulation:
         else:
             shutil.copyfile(
                 self.settings.initial_states_folder / "cold_state.erf",
-                self.settings.restart_file.replace(".trf", ".erf")
+                str(self.settings.restart_file).replace(".trf", ".erf")
             )
 
     def save_state(self):
