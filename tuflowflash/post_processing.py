@@ -42,7 +42,7 @@ class ProcessFlash:
         self.convert_flt_to_tiff()
         logger.info("Tuflow results converted to tiff")
         filenames = glob.glob(
-            os.path.join(self.settings.raster_output_folder, "grids", "*[!Max]*.tif")
+            os.path.join(self.settings.raster_output_folder, "*[!Max]*.tif")
         )
         timestamps = []
         for (
