@@ -60,6 +60,11 @@ bom_settings = {
     "forecast_clipshape": Path,
 }
 
+email_settings = {
+    "email_adress": str,
+    "email_password": str,
+    "email_attendees_csv": Path,
+}
 
 class MissingFileException(Exception):
     pass
@@ -83,6 +88,7 @@ class FlashSettings:
         self.read_settings_file(lizard_settings, "lizard")
         self.read_settings_file(switches_settings, "switches")
         self.read_settings_file(bom_settings, "bom")
+        self.read_settings_file(email_settings, "email")
 
         self.read_tcf_parameters(self.tcf_file)
 
