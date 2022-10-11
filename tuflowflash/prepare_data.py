@@ -1,4 +1,3 @@
-from pathlib import Path
 from pyproj import Proj
 from pyproj import Transformer
 from shapely.geometry import mapping
