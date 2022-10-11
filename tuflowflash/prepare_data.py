@@ -28,6 +28,7 @@ TIMESERIES_URL = "https://rhdhv.lizard.net/api/v4/timeseries/{}/events/"
 FTP_RETRY_COUNT = 10
 FTP_RETRY_SLEEP = 5
 
+
 class MissingFileException(Exception):
     pass
 
@@ -431,11 +432,14 @@ class prepareData:
                     self.hindcast_netcdf_to_ascii(
                         f,
                         os.path.join(
-                            self.settings.rain_grids_folder, str(timediff_hours) + ".asc"
+                            self.settings.rain_grids_folder,
+                            str(timediff_hours) + ".asc",
                         ),
                     )
                 except OSError:
-                    logger.warning("Found historic netcdf file which is invalid, continuing")
+                    logger.warning(
+                        "Found historic netcdf file which is invalid, continuing"
+                    )
                     pass
 
     def hindcast_netcdf_to_ascii(self, netcdf_rainfall_file, ascii_outfile):

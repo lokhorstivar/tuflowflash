@@ -66,6 +66,7 @@ email_settings = {
     "email_attendees_csv": Path,
 }
 
+
 class MissingFileException(Exception):
     pass
 
