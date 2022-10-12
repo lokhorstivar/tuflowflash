@@ -333,7 +333,7 @@ class prepareData:
                 target.variables["time"][:] = data
             elif name == "precipitation":
                 data = data[p50_index, time_indexes]
-                data = data * 20 # to be checked
+                data = data #* 20 # to be checked
                 data = np.where(data < 0, -999, data)
                 target.variables["rainfall_depth"][:, :, :] = data
             elif name == "x":
@@ -459,7 +459,7 @@ class prepareData:
             0,
             precip_arr,
         )
-        precip_arr = precip_arr * 20 # to be checked
+        precip_arr = precip_arr #* 20 # to be checked
         # the upper-left and lower-right coordinates of the image
         LonMin, LatMax, LatMin = [Lon.min(), Lat.max(), Lat.min()]
 
