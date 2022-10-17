@@ -126,7 +126,7 @@ class ProcessFlash:
         logging.info("succesfully archived files to: %s", result_folder)
 
     def remove_flts_from_archive(self,result_folder):
-        for (dirname, dirs, files) in os.walk(main_dir):
+        for (dirname, dirs, files) in os.walk(result_folder):
            for file in files:
               if file.endswith('.flt'):
                   source_file = os.path.join(dirname, file)
