@@ -120,10 +120,18 @@ class ProcessFlash:
                 os.path.join("temp", "radar_rain.nc"),
                 os.path.join(result_folder, "radar_rain.nc"),
             )
+        self.remove_flts_from_archive(results_folder)
         shutil.make_archive(result_folder, "zip", result_folder)
         shutil.rmtree(result_folder)
         logging.info("succesfully archived files to: %s", result_folder)
 
+    def remove_flts_from_archive(self,result_folder):
+        for (dirname, dirs, files) in os.walk(main_dir):
+           for file in files:
+              if file.endswith('.flt'):
+                  source_file = os.path.join(dirname, file)
+                  os.remove(source_file)
+        
     def clear_in_output(self):
         shutil.rmtree("Log")
         shutil.rmtree(self.settings.output_folder)
