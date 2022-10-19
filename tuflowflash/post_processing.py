@@ -120,7 +120,7 @@ class ProcessFlash:
                 os.path.join("temp", "radar_rain.nc"),
                 os.path.join(result_folder, "radar_rain.nc"),
             )
-        self.remove_flts_from_archive(results_folder)
+        self.remove_flts_from_archive(result_folder)
         shutil.make_archive(result_folder, "zip", result_folder)
         shutil.rmtree(result_folder)
         logging.info("succesfully archived files to: %s", result_folder)
