@@ -94,8 +94,6 @@ def main():
     )
     try:
         # Historical precipitation
-        raise read_settings.MissingFileException
-
         data_prepper = prepare_data.prepareData(settings)
         if settings.get_historical_precipitation:
             data_prepper.get_historical_precipitation()
