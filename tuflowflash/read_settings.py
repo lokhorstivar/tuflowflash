@@ -63,7 +63,7 @@ bom_settings = {
 email_settings = {
     "email_adress": str,
     "email_password": str,
-    "email_attendees_csv": Path,
+    "email_attendees": str,
 }
 
 
