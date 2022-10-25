@@ -1,13 +1,16 @@
+from email.message import EmailMessage
+from pathlib import Path
 from tuflowflash import post_processing
 from tuflowflash import prepare_data
 from tuflowflash import read_settings
 from tuflowflash import run_tuflow
-from pathlib import Path
 
 import argparse
+import glob
 import logging
 import os
-import glob
+import smtplib
+
 
 logger = logging.getLogger(__name__)
 
@@ -15,6 +18,20 @@ OWN_EXCEPTIONS = (
     read_settings.MissingFileException,
     read_settings.MissingSettingException,
 )
+
+
+def send_email(subject, body, email_adress, email_password):
+
+    # msg calss from email.message to easily format the email
+    msg = EmailMessage()
+    msg["Subject"] = subject
+    msg["From"] = email_adress
+    msg["To"] = "tobias.wheeler@rhdhv.com"
+    msg.set_content(body)
+
+    with smtplib.SMTP_SSL("smtp.gmail.com", 465) as smtp:
+        smtp.login(email_adress, email_password)
+        smtp.send_message(msg)
 
 
 def get_latest_raingrid(folder):
@@ -77,6 +94,7 @@ def main():
     )
     try:
         # Historical precipitation
+        assert 1==2
         data_prepper = prepare_data.prepareData(settings)
         if settings.get_historical_precipitation:
             data_prepper.get_historical_precipitation()
@@ -153,6 +171,12 @@ def main():
         return 0
 
     except OWN_EXCEPTIONS as e:
+        send_email(
+            "HVFMS Forecast failed",
+            "Hunter valley forecast run crashed, please look at the logging for more information",
+            settings.email_adress,
+            settings.email_password,
+        )
         if options.verbose:
             logger.exception(e)
         else:
