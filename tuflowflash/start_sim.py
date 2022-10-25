@@ -94,7 +94,12 @@ def main():
     )
     try:
         # Historical precipitation
-        assert 1==2
+        send_email(
+            "HVFMS Forecast failed",
+            "Hunter valley forecast run crashed, please look at the logging for more information",
+            settings.email_adress,
+            settings.email_password,
+        )
         data_prepper = prepare_data.prepareData(settings)
         if settings.get_historical_precipitation:
             data_prepper.get_historical_precipitation()
