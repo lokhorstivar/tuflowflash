@@ -26,7 +26,7 @@ def send_email(subject, body, email_adress, email_password):
     msg = EmailMessage()
     msg["Subject"] = subject
     msg["From"] = email_adress
-    msg["To"] = "tobias.wheeler@rhdhv.com"
+    msg["To"] = "tobias.wheeler@rhdhv.com, ivar.lokhorst@rhdhv.com"
     msg.set_content(body)
 
     with smtplib.SMTP_SSL("smtp.gmail.com", 465) as smtp:
@@ -94,12 +94,7 @@ def main():
     )
     try:
         # Historical precipitation
-        send_email(
-            "HVFMS Forecast failed",
-            "Hunter valley forecast run crashed, please look at the logging for more information",
-            settings.email_adress,
-            settings.email_password,
-        )
+
         data_prepper = prepare_data.prepareData(settings)
         if settings.get_historical_precipitation:
             data_prepper.get_historical_precipitation()
