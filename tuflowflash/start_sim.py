@@ -20,13 +20,13 @@ OWN_EXCEPTIONS = (
 )
 
 
-def send_email(subject, body, email_adress, email_password):
+def send_email(subject, body, email_adress, email_password, attendees):
 
     # msg calss from email.message to easily format the email
     msg = EmailMessage()
     msg["Subject"] = subject
     msg["From"] = email_adress
-    msg["To"] = "tobias.wheeler@rhdhv.com, ivar.lokhorst@rhdhv.com"
+    msg["To"] = attendees
     msg.set_content(body)
 
     with smtplib.SMTP_SSL("smtp.gmail.com", 465) as smtp:
@@ -175,6 +175,7 @@ def main():
             "Hunter valley forecast run crashed, please look at the logging for more information",
             settings.email_adress,
             settings.email_password,
+            settings.email_attendees
         )
         if options.verbose:
             logger.exception(e)
