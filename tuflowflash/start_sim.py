@@ -169,7 +169,7 @@ def main():
             logger.info("not clearing in/output, skipping..")
         return 0
 
-    except OWN_EXCEPTIONS as e:
+    except Exception as e:
         send_email(
             "HVFMS Forecast failed",
             "Hunter valley forecast run crashed, please look at the logging for more information",
