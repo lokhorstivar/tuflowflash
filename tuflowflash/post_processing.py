@@ -43,13 +43,13 @@ class ProcessFlash:
         logger.info("Tuflow results converted to tiff")
 
         if self.settings.waterdepth_raster_upload_list:
-            filenames, timestamps = self.select_rasters_to_upload(raster_list)
+            filenames, timestamps = self.select_rasters_to_upload(self.settings.waterdepth_raster_upload_list)
             self.post_temporal_raster_to_lizard(
                 filenames, self.settings.depth_raster_uuid, timestamps
             )
 
         if self.settings.waterlevel_raster_upload_list:
-            filenames, timestamps = self.select_rasters_to_upload(raster_list)
+            filenames, timestamps = self.select_rasters_to_upload(self.settings.waterlevel_raster_upload_list)
             self.post_temporal_raster_to_lizard(
                 filenames, self.settings.waterlevel_raster_uuid, timestamps
             )
