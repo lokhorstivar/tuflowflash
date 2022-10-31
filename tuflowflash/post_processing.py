@@ -41,9 +41,28 @@ class ProcessFlash:
     def process_tuflow(self):
         self.convert_flt_to_tiff()
         logger.info("Tuflow results converted to tiff")
-        filenames = glob.glob(
-            os.path.join(self.settings.raster_output_folder, "*[!Max]*.tif")
-        )
+
+        if self.settings.waterdepth_raster_upload_list:
+            filenames, timestamps = self.select_rasters_to_upload(raster_list)
+            self.post_temporal_raster_to_lizard(
+                filenames, self.settings.depth_raster_uuid, timestamps
+            )
+
+        if self.settings.waterlevel_raster_upload_list:
+            filenames, timestamps = self.select_rasters_to_upload(raster_list)
+            self.post_temporal_raster_to_lizard(
+                filenames, self.settings.waterlevel_raster_uuid, timestamps
+            )
+        logger.info("Tuflow results posted to Lizard")
+        if hasattr(self.settings, "waterlevel_result_uuid_file"):
+            self.post_timeseries()
+
+    def select_rasters_to_upload(self, raster_list):
+        filenames = []
+        for raster in raster_list:
+            filenames.append(
+                os.path.join(self.settings.raster_output_folder, raster + ".tif")
+            )
         timestamps = []
         for (
             file
@@ -56,12 +75,7 @@ class ProcessFlash:
                 hours=float(file_timestamp)
             )
             timestamps.append(timestamp)
-        self.post_temporal_raster_to_lizard(
-            filenames, self.settings.depth_raster_uuid, timestamps
-        )
-        logger.info("Tuflow results posted to Lizard")
-        if hasattr(self.settings, "waterlevel_result_uuid_file"):
-            self.post_timeseries()
+        return filenames, timestamps
 
     def upload_bom_precipitation(self):
         self.NC_to_tiffs(Path("temp"))
@@ -125,13 +139,13 @@ class ProcessFlash:
         shutil.rmtree(result_folder)
         logging.info("succesfully archived files to: %s", result_folder)
 
-    def remove_flts_from_archive(self,result_folder):
+    def remove_flts_from_archive(self, result_folder):
         for (dirname, dirs, files) in os.walk(result_folder):
-           for file in files:
-              if file.endswith('.flt'):
-                  source_file = os.path.join(dirname, file)
-                  os.remove(source_file)
-        
+            for file in files:
+                if file.endswith(".flt"):
+                    source_file = os.path.join(dirname, file)
+                    os.remove(source_file)
+
     def clear_in_output(self):
         shutil.rmtree("Log")
         shutil.rmtree(self.settings.output_folder)
@@ -159,10 +173,16 @@ class ProcessFlash:
     def convert_flt_to_tiff(self):
         gdal.UseExceptions()
         file_path_list = []
-        for file in self.settings.waterdepth_raster_upload_list:
-            file_path_list.append(
-                os.path.join(self.settings.raster_output_folder, file + ".flt")
-            )
+        if self.settings.waterdepth_raster_upload_list:
+            for file in self.settings.waterdepth_raster_upload_list:
+                file_path_list.append(
+                    os.path.join(self.settings.raster_output_folder, file + ".flt")
+                )
+        if self.settings.waterlevel_raster_upload_list:
+            for file in self.settings.waterlevel_raster_upload_list:
+                file_path_list.append(
+                    os.path.join(self.settings.raster_output_folder, file + ".flt")
+                )
 
         for file in file_path_list:
             data = gdal.Open(file, gdalconst.GA_ReadOnly)

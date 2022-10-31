@@ -175,7 +175,7 @@ def main():
             "Hunter valley forecast run crashed, please look at the logging for more information",
             settings.email_adress,
             settings.email_password,
-            settings.email_attendees
+            settings.email_attendees,
         )
         if options.verbose:
             logger.exception(e)

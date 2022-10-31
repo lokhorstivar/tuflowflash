@@ -41,7 +41,9 @@ class prepareData:
         logger.info("Started gathering historical precipitation data")
         rainfall_gauges_uuids = self.read_rainfall_timeseries_uuids()
 
-        rain_df = self.get_lizard_timeseries(rainfall_gauges_uuids,)
+        rain_df = self.get_lizard_timeseries(
+            rainfall_gauges_uuids,
+        )
         logger.info("gathered lizard rainfall timeseries")
 
         ## preprocess rain data
@@ -333,7 +335,7 @@ class prepareData:
                 target.variables["time"][:] = data
             elif name == "precipitation":
                 data = data[p50_index, time_indexes]
-                data = data #* 20 # to be checked
+                data = data  # * 20 # to be checked
                 data = np.where(data < 0, -999, data)
                 target.variables["rainfall_depth"][:, :, :] = data
             elif name == "x":
@@ -459,7 +461,7 @@ class prepareData:
             0,
             precip_arr,
         )
-        precip_arr = precip_arr #* 20 # to be checked
+        precip_arr = precip_arr  # * 20 # to be checked
         # the upper-left and lower-right coordinates of the image
         LonMin, LatMax, LatMin = [Lon.min(), Lat.max(), Lat.min()]
 
@@ -475,7 +477,11 @@ class prepareData:
         header += "NODATA_value -9999\n"
 
         np.savetxt(
-            ascii_outfile, precip_arr, header=header, fmt="%1.2f", comments="",
+            ascii_outfile,
+            precip_arr,
+            header=header,
+            fmt="%1.2f",
+            comments="",
         )
 
     def write_ascii_csv(self):
