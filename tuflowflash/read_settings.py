@@ -173,7 +173,9 @@ class FlashSettings:
                         setattr(self, variable, str(value))
                     if datatype == bool:
                         setattr(
-                            self, variable, value.lower() == "true",
+                            self,
+                            variable,
+                            value.lower() == "true",
                         )
                     if datatype == list:
                         input_list = string_to_list(value)
