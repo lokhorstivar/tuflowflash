@@ -41,6 +41,8 @@ class ProcessFlash:
     def process_tuflow(self):
         self.convert_flt_to_tiff()
         logger.info("Tuflow results converted to tiff")
+        if hasattr(self.settings, "waterlevel_result_uuid_file"):
+            self.post_timeseries()
 
         if self.settings.waterdepth_raster_upload_list:
             filenames, timestamps = self.select_rasters_to_upload(self.settings.waterdepth_raster_upload_list)
@@ -54,8 +56,6 @@ class ProcessFlash:
                 filenames, self.settings.waterlevel_raster_uuid, timestamps
             )
         logger.info("Tuflow results posted to Lizard")
-        if hasattr(self.settings, "waterlevel_result_uuid_file"):
-            self.post_timeseries()
 
     def select_rasters_to_upload(self, raster_list):
         filenames = []
