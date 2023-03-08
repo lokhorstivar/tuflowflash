@@ -39,19 +39,24 @@ class ProcessFlash:
         self.settings = settings
 
     def process_tuflow(self):
-        self.convert_flt_to_tiff()
+        # self.convert_flt_to_tiff()
+        self.project_geotiff_rasters()
         logger.info("Tuflow results converted to tiff")
         if hasattr(self.settings, "waterlevel_result_uuid_file"):
             self.post_timeseries()
 
         if self.settings.waterdepth_raster_upload_list:
-            filenames, timestamps = self.select_rasters_to_upload(self.settings.waterdepth_raster_upload_list)
+            filenames, timestamps = self.select_rasters_to_upload(
+                self.settings.waterdepth_raster_upload_list
+            )
             self.post_temporal_raster_to_lizard(
                 filenames, self.settings.depth_raster_uuid, timestamps
             )
 
         if self.settings.waterlevel_raster_upload_list:
-            filenames, timestamps = self.select_rasters_to_upload(self.settings.waterlevel_raster_upload_list)
+            filenames, timestamps = self.select_rasters_to_upload(
+                self.settings.waterlevel_raster_upload_list
+            )
             self.post_temporal_raster_to_lizard(
                 filenames, self.settings.waterlevel_raster_uuid, timestamps
             )
@@ -76,6 +81,30 @@ class ProcessFlash:
             )
             timestamps.append(timestamp)
         return filenames, timestamps
+
+    def project_geotiff_rasters(self):
+        file_path_list = []
+        if self.settings.waterdepth_raster_upload_list:
+            for file in self.settings.waterdepth_raster_upload_list:
+                file_path_list.append(
+                    os.path.join(self.settings.raster_output_folder, file + ".tif")
+                )
+        if self.settings.waterlevel_raster_upload_list:
+            for file in self.settings.waterlevel_raster_upload_list:
+                file_path_list.append(
+                    os.path.join(self.settings.raster_output_folder, file + ".tif")
+                )
+        for file in file_path_list:
+            ds = gdal.Open(file, gdal.GA_Update)
+            if ds:
+                print("Updating projection for " + file)
+                srs_wkt = self.create_projection()
+                res = ds.SetProjection(srs_wkt)
+                if res != 0:
+                    print("Setting projection failed " + str(res))
+                ds = None  # save, close
+            else:
+                print("Could not open with GDAL: " + file)
 
     def upload_bom_precipitation(self):
         self.NC_to_tiffs(Path("temp"))
@@ -140,7 +169,7 @@ class ProcessFlash:
         logging.info("succesfully archived files to: %s", result_folder)
 
     def remove_flts_from_archive(self, result_folder):
-        for (dirname, dirs, files) in os.walk(result_folder):
+        for dirname, dirs, files in os.walk(result_folder):
             for file in files:
                 if file.endswith(".flt"):
                     source_file = os.path.join(dirname, file)
