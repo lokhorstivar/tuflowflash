@@ -266,6 +266,8 @@ class ProcessFlash:
         )
 
         results_dataframe = pd.read_csv(file_name)
+        results_dataframe = results_dataframe.iloc[1:]
+
         for index, row in results_dataframe.iterrows():
             results_dataframe.at[
                 index, "datetime"
