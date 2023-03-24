@@ -265,7 +265,7 @@ class ProcessFlash:
             str(self.settings.tcf_file.name).replace(".tcf", "_PO.csv"),
         )
 
-        results_dataframe = pd.read_csv(file_name, skiprows=1)
+        results_dataframe = pd.read_csv(file_name)
         for index, row in results_dataframe.iterrows():
             results_dataframe.at[
                 index, "datetime"
