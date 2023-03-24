@@ -271,7 +271,7 @@ class ProcessFlash:
         for index, row in results_dataframe.iterrows():
             results_dataframe.at[
                 index, "datetime"
-            ] = self.settings.reference_time + datetime.timedelta(hours=row["Location"]) #weird row order in po file
+            ] = self.settings.reference_time + datetime.timedelta(hours=float(row["Location"])) #weird row order in po file
         results_dataframe.set_index("datetime", inplace=True)
         for index, row in result_ts_uuids.iterrows():
             timeserie = self.create_post_element(
