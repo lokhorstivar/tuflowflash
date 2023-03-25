@@ -244,7 +244,7 @@ class ProcessFlash:
             data.append(
                 {
                     "time": index.isoformat() + timezone_stamp,
-                    "value": str(value + shift),
+                    "value": str(float(value) + shift),
                 }
             )
         return data
