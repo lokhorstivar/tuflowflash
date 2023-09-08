@@ -271,7 +271,9 @@ class ProcessFlash:
         for index, row in results_dataframe.iterrows():
             results_dataframe.at[
                 index, "datetime"
-            ] = self.settings.reference_time + datetime.timedelta(hours=float(row["Location"])) #weird row order in po file
+            ] = self.settings.reference_time + datetime.timedelta(
+                hours=float(row["Location"])
+            )  # weird row order in po file
         results_dataframe.set_index("datetime", inplace=True)
         for index, row in result_ts_uuids.iterrows():
             timeserie = self.create_post_element(
@@ -359,18 +361,18 @@ class ProcessFlash:
             except:
                 logger.error("Error, file post for %s failed", file)
 
-            waittime = 0
-            while (
-                requests.get(url=r.json()["url"]).json()["status"]
-                not in ["SUCCESS", "FAILURE"]
-            ) and (waittime <= MAXWAITTIME_RASTER_UPLOAD):
-                logger.info(
-                    "raster: %s upload status: %s",
-                    file,
-                    requests.get(url=r.json()["url"]).json()["status"],
-                )
-                waittime += 10
-                sleep(10)
+            # waittime = 0
+            # while (
+            # requests.get(url=r.json()["url"]).json()["status"]
+            # not in ["SUCCESS", "FAILURE"]
+            # ) and (waittime <= MAXWAITTIME_RASTER_UPLOAD):
+            # logger.info(
+            # "raster: %s upload status: %s",
+            # file,
+            # requests.get(url=r.json()["url"]).json()["status"],
+            # )
+            # waittime += 10
+            # sleep(10)
         return
 
     def track_historic_forecasts_in_lizard(self):

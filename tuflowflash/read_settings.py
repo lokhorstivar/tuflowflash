@@ -23,6 +23,8 @@ Tuflow_settings = {
     "rain_grids_folder": Path,
     "rain_grids_csv": Path,
     "archive_folder": Path,
+    "soil_moisture_awra_l_url": str,
+    "soil_moisture_folder": Path,
 }
 
 lizard_settings = {
