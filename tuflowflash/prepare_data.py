@@ -2,7 +2,7 @@ from pyproj import Proj
 from pyproj import Transformer
 from shapely.geometry import mapping
 from typing import List
-from datetime import datetime
+from datetime import datetime, timedelta
 from pathlib import Path
 
 import cftime
@@ -46,7 +46,7 @@ class prepareData:
         )
         logger.info("gathered lizard rainfall timeseries")
 
-        ## preprocess rain data
+        # preprocess rain data
         local = pytz.timezone("Australia/Sydney")
         local_reference_time = local.localize(self.settings.reference_time, is_dst=None)
         utc_reference_time = local_reference_time.astimezone(pytz.utc)
@@ -293,7 +293,6 @@ class prepareData:
         # Create the variables in the file.
 
         for name, var in source.variables.items():
-
             if name == "precipitation":
                 target.createVariable("rainfall_depth", float, ("time", "y", "x"))
             elif name == "valid_time":
@@ -445,7 +444,6 @@ class prepareData:
                     pass
 
     def hindcast_netcdf_to_ascii(self, netcdf_rainfall_file, ascii_outfile):
-
         nc_data_obj = nc.Dataset(netcdf_rainfall_file)
         x_center, y_center = self.reproject_bom(
             nc_data_obj.variables["proj"].longitude_of_central_meridian,
@@ -496,3 +494,68 @@ class prepareData:
         df.sort_values("Time (hrs)", inplace=True)
         df.set_index("Time (hrs)", inplace=True)
         df.to_csv(self.settings.rain_grids_csv)
+
+    def download_soil_moisture(self):
+        # Create timezone objecty of Sydney Australia
+        aus_tz = pytz.timezone("Australia/Sydney")
+        # Find time right now
+        time_now = datetime.now(aus_tz)
+
+        # Generate the name of the .nc file to download (for example sm_pct_2023.nc). One nc file exists for each year and the file is updated daily
+        nc_soil_moisture_filename = "sm_pct_" + str(time_now.year) + ".nc"
+        nc_soil_moisture_file = (
+            self.settings.soil_moisture_folder / nc_soil_moisture_filename
+        )
+
+        # Generate request for file from the AWO HTTP server
+        awra_l_url = self.settings.soil_moisture_awra_l_url + nc_soil_moisture_filename
+        response = requests.get(awra_l_url)
+
+        if response.status_code == 200:
+            with open(nc_soil_moisture_file, "wb") as file:
+                file.write(response.content)
+            logging.info("succesfully downloaded %s", nc_soil_moisture_filename)
+
+            # Create nc object from the .nc file
+            nc_data_obj = nc.Dataset(nc_soil_moisture_file)
+
+            # Create a numpy array from the soil moisture values (most recent file)
+            soil_moisture_arr = np.asarray(nc_data_obj["sm_pct"][-1, :, :])
+
+            # Create arrays for the lon and lat and find minu lon and min and max lat
+            Lon = nc_data_obj["longitude"][:]
+            Lat = nc_data_obj["latitude"][:]
+            LonMin, LatMax, LatMin = [Lon[:][0], Lat[:][0], Lat[:][-1]]
+            N_Lat = len(Lat)
+
+            # Determine resolution (in degrees) of the lat and lon
+            Lat_Res = (LatMax - LatMin) / (float(N_Lat) - 1)
+
+            # Write header columns for the .asc
+            header = "ncols     %s\n" % soil_moisture_arr.shape[1]
+            header += "nrows    %s\n" % soil_moisture_arr.shape[0]
+            header += "xllcorner {}\n".format(LonMin)
+            header += "yllcorner {}\n".format(LatMin)
+            header += "cellsize {}\n".format(Lat_Res)
+            header += "NODATA_value -999\n"
+
+            # Time in the nc_file is days since 1900-01-01 - calculate date from soil moisture file
+            days_since_1900 = nc_data_obj["time"][-1].data.item()
+            base_date = datetime(1900, 1, 1)
+            target_date = base_date + timedelta(days=days_since_1900)
+            month, day = target_date.month, target_date.day
+
+            # Save the soil moisture as an .asc with Lat Lon projection
+            np.savetxt(
+                nc_soil_moisture_file[:-3]
+                + f"_{str(month).zfill(2)}_{str(day).zfill(2)}.asc",
+                soil_moisture_arr,
+                header=header,
+                comments="",
+            )
+
+            # Close the nc files
+            nc_data_obj.close()
+
+        else:
+            logger.warning("Could not download %s", nc_soil_moisture_filename)
