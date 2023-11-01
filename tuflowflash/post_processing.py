@@ -84,12 +84,12 @@ class ProcessFlash:
 
     def project_geotiff_rasters(self):
         file_path_list = []
-        if self.settings.waterdepth_raster_upload_list:
+        if hasattr(self.settings,"waterdepth_raster_upload_list"):
             for file in self.settings.waterdepth_raster_upload_list:
                 file_path_list.append(
                     os.path.join(self.settings.raster_output_folder, file + ".tif")
                 )
-        if self.settings.waterlevel_raster_upload_list:
+        if hasattr(self.settings, "waterlevel_raster_upload_list"):
             for file in self.settings.waterlevel_raster_upload_list:
                 file_path_list.append(
                     os.path.join(self.settings.raster_output_folder, file + ".tif")
