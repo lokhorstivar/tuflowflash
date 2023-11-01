@@ -22,7 +22,7 @@ import numpy as np
 import pytz
 import requests
 import shutil
-
+from tuflowflash.impact_module import impactModule
 
 logger = logging.getLogger(__name__)
 RASTER_SOURCES_URL = (
@@ -45,12 +45,12 @@ class ProcessFlash:
         if hasattr(self.settings, "waterlevel_result_uuid_file"):
             self.post_timeseries()
 
-        if hasattr(self.settings,"waterdepth_raster_upload_list"):
-            filenames, timestamps = self.select_rasters_to_upload(
+        if hasattr(self.settings, "waterdepth_raster_upload_list"):
+            waterdepth_filenames, timestamps = self.select_rasters_to_upload(
                 self.settings.waterdepth_raster_upload_list
             )
             self.post_temporal_raster_to_lizard(
-                filenames, self.settings.depth_raster_uuid, timestamps
+                waterdepth_filenames, self.settings.depth_raster_uuid, timestamps
             )
 
         if hasattr(self.settings, "waterlevel_raster_upload_list"):
@@ -60,7 +60,41 @@ class ProcessFlash:
             self.post_temporal_raster_to_lizard(
                 filenames, self.settings.waterlevel_raster_uuid, timestamps
             )
+
+        if self.settings.determine_impact:
+            filenames, timestamps = self.process_depth_to_impact(waterdepth_filenames)
+            self.post_temporal_raster_to_lizard(
+                filenames, self.settings.impact_raster_uuid, timestamps
+            )
         logger.info("Tuflow results posted to Lizard")
+
+    def process_depth_to_impact(self, waterdepth_filenames):
+        impact_module = impactModule(self.settings, self.settings.end_result_type)
+        raster_filenames = []
+        timestamps = []
+        for raster in waterdepth_filenames:
+            vector_list = []
+            vector_list.append(
+                impact_module.determine_vulnerability_roads(
+                    self.settings.roads_file, self.settings.projection, raster
+                )
+            )
+            vector_list.append(
+                impact_module.determine_vulnerability_buildings(
+                    self.settings.buildings_file, self.settings.projection, raster
+                )
+            )
+            raster_filenames.append(
+                impact_module.create_impact_raster(vector_list, raster)
+            )
+
+            file_stem = Path(raster).stem
+            file_timestamp = float(file_stem[-3:])
+            timestamp = self.settings.start_time + datetime.timedelta(
+                hours=float(file_timestamp)
+            )
+            timestamps.append(timestamp)
+        return raster_filenames, timestamps
 
     def select_rasters_to_upload(self, raster_list):
         filenames = []
@@ -84,7 +118,7 @@ class ProcessFlash:
 
     def project_geotiff_rasters(self):
         file_path_list = []
-        if hasattr(self.settings,"waterdepth_raster_upload_list"):
+        if hasattr(self.settings, "waterdepth_raster_upload_list"):
             for file in self.settings.waterdepth_raster_upload_list:
                 file_path_list.append(
                     os.path.join(self.settings.raster_output_folder, file + ".tif")
@@ -98,7 +132,7 @@ class ProcessFlash:
             ds = gdal.Open(file, gdal.GA_Update)
             if ds:
                 print("Updating projection for " + file)
-                srs_wkt = self.create_projection()
+                srs_wkt = self.create_projection(self.settings.projection)
                 res = ds.SetProjection(srs_wkt)
                 if res != 0:
                     print("Setting projection failed " + str(res))
@@ -190,12 +224,12 @@ class ProcessFlash:
         if hasattr(self.settings, "boundary_csv_tuflow_file"):
             os.remove(self.settings.boundary_csv_tuflow_file)
 
-    def create_projection(self):
+    def create_projection(self, projection):
         """obtain wkt definition of the tuflow spatial projection. Used to write
         geotiff format files with gdal.
         """
         srs = osr.SpatialReference()
-        srs.ImportFromEPSG(7856)
+        srs.ImportFromEPSG(projection)
         srs_wkt = srs.ExportToWkt()
         return srs_wkt
 
@@ -218,7 +252,7 @@ class ProcessFlash:
             nodata = data.GetRasterBand(1).GetNoDataValue()
             data_array = data.GetRasterBand(1).ReadAsArray()
             geo_transform = data.GetGeoTransform()
-            proj = self.create_projection()
+            proj = self.create_projection(self.settings.projection)
             x_res = data.RasterXSize
             y_res = data.RasterYSize
 

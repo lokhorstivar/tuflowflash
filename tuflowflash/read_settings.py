@@ -25,6 +25,7 @@ Tuflow_settings = {
     "archive_folder": Path,
     "soil_moisture_awra_l_url": str,
     "soil_moisture_folder": Path,
+    "projection": int,
 }
 
 lizard_settings = {
@@ -39,6 +40,14 @@ lizard_settings = {
     "historic_forecast_administration_csv": Path,
 }
 
+impact_module_settings = {
+    "end_result_type": str,
+    "roads_file": Path,
+    "buildings_file": Path,
+    "assets_file": Path,
+    "impact_raster_uuid": str,
+}
+
 switches_settings = {
     "get_historical_precipitation": bool,
     "convert_csv_to_bc": bool,
@@ -50,6 +59,7 @@ switches_settings = {
     "archive_simulation": bool,
     "clear_input_output": bool,
     "track_historic_forecasts": bool,
+    "determine_impact": bool,
 }
 
 bom_settings = {
@@ -90,6 +100,8 @@ class FlashSettings:
         self.read_settings_file(Tuflow_settings, "tuflow")
         self.read_settings_file(lizard_settings, "lizard")
         self.read_settings_file(switches_settings, "switches")
+        if self.determine_impact:
+            self.read_settings_file(impact_module_settings, "impact_module")
         self.read_settings_file(bom_settings, "bom")
         self.read_settings_file(email_settings, "email")
 
