@@ -45,7 +45,7 @@ class ProcessFlash:
         if hasattr(self.settings, "waterlevel_result_uuid_file"):
             self.post_timeseries()
 
-        if self.settings.waterdepth_raster_upload_list:
+        if hasattr(self.settings,"waterdepth_raster_upload_list"):
             filenames, timestamps = self.select_rasters_to_upload(
                 self.settings.waterdepth_raster_upload_list
             )
@@ -53,7 +53,7 @@ class ProcessFlash:
                 filenames, self.settings.depth_raster_uuid, timestamps
             )
 
-        if self.settings.waterlevel_raster_upload_list:
+        if hasattr(self.settings, "waterlevel_raster_upload_list"):
             filenames, timestamps = self.select_rasters_to_upload(
                 self.settings.waterlevel_raster_upload_list
             )
