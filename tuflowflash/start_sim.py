@@ -21,7 +21,6 @@ OWN_EXCEPTIONS = (
 
 
 def send_email(subject, body, email_adress, email_password, attendees):
-
     # msg calss from email.message to easily format the email
     msg = EmailMessage()
     msg["Subject"] = subject
