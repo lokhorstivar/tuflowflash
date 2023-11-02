@@ -17,6 +17,7 @@ Tuflow_settings = {
     "gauge_rainfall_file": Path,
     "boundary_csv_input_file": Path,
     "boundary_csv_tuflow_file": Path,
+    "custom_residual_script": Path,
     "netcdf_forecast_rainfall_file": Path,
     "netcdf_nowcast_rainfall_file": Path,
     "raster_output_folder": Path,
@@ -51,6 +52,7 @@ impact_module_settings = {
 switches_settings = {
     "get_historical_precipitation": bool,
     "convert_csv_to_bc": bool,
+    "custom_residual_tide": bool,
     "get_bom_forecast": bool,
     "get_bom_nowcast": bool,
     "use_bom_historical": bool,

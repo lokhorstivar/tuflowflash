@@ -4,6 +4,7 @@ from tuflowflash import post_processing
 from tuflowflash import prepare_data
 from tuflowflash import read_settings
 from tuflowflash import run_tuflow
+import subprocess
 
 import argparse
 import glob
@@ -135,6 +136,8 @@ def main():
 
         if settings.convert_csv_to_bc:
             data_prepper.convert_csv_file_to_bc_file()
+            if settings.custom_residual_tide:
+                subprocess.run(["python",settings.custom_residual_script])
         else:
             logger.info("not converting csv to boundary conditions, skipping..")
 
