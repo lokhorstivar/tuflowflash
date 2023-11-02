@@ -7,6 +7,16 @@ BUFFER_SIZE = 5
 CAP_STYLE = 2
 CLASSES = {"low": 1, "medium": 2, "high": 3}
 
+def save_array_to_tiff(outfile, array, profile):
+    """Saves rasterio or numpy array to tiff file
+
+    Args:
+        outfile (str): destination path for the file (tiff)
+        array (np.array): array with the data
+        profile (rasterio): raster metadata profile (can be derived from other raster)
+    """
+    with rasterio.open(outfile, "w", **profile) as dst:
+        dst.write(array, 1)
 
 def rasterize_vector_column(geodataframe, value_column, outfile, transform):
     """Process vector_file to raster
@@ -98,12 +108,16 @@ class impactModule:
         with rasterio.open(depth_raster) as src:
             profile = src.profile
             transform = profile["transform"]
+        impact_data = (
+            np.empty((profile["height"], profile["width"])) + profile["nodata"]
+        ).astype(dtype=np.float32)
         for vector_file in vector_list:
             geodataframe = gpd.read_file(vector_file)
-            rasterize_vector_column(
+            impact_data = rasterize_vector_column(
                 geodataframe,
                 "vulnerability_class",
-                depth_raster.replace(".tif", "_vulnerability.tif"),
+                impact_data,
                 transform,
             )
+        save_array_to_tiff(depth_raster.replace(".tif", "_vulnerability.tif"), impact_data, profile)
         return depth_raster.replace(".tif", "_vulnerability.tif")
