@@ -19,7 +19,7 @@ def save_array_to_tiff(outfile, array, profile):
     with rasterio.open(outfile, "w", **profile) as dst:
         dst.write(array, 1)
 
-def rasterize_vector_column(geodataframe, value_column, outfile, transform):
+def rasterize_vector_column(geodataframe, value_column, outfile, transform,depth_raster):
     """Process vector_file to raster
 
     Args:
@@ -31,11 +31,15 @@ def rasterize_vector_column(geodataframe, value_column, outfile, transform):
         bbox (bbox, optional): bounding box to clip geopackage
     """
 
+    with rasterio.open(depth_raster) as src:
+        shape = src.shape
+
     for index, row in geodataframe.iterrows():
         geom = row["geometry"]
         value = row[value_column]
         features.rasterize(
             [geom],
+            out_shape=shape,
             out=outfile,
             transform=transform,
             all_touched=False,
@@ -119,6 +123,7 @@ class impactModule:
                 "vulnerability_class",
                 impact_data,
                 transform,
+                depth_raster,
             )
         save_array_to_tiff(depth_raster.replace(".tif", "_vulnerability.tif"), impact_data, profile)
         return depth_raster.replace(".tif", "_vulnerability.tif")
