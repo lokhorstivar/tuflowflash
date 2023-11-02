@@ -65,6 +65,17 @@ class ProcessFlash:
             self.process_depth_to_impact(waterdepth_filenames)
         logger.info("Tuflow results posted to Lizard")
 
+    def tuflow_tif_output_to_relative_timestamp(self, filename):
+        file_stem = Path(filename).stem
+        if file_stem.endswith("_00"):
+            file_timestamp = float(file_stem[-6:-3])
+        else:
+            file_timestamp = float(file_stem[-3:])
+        timestamp = self.settings.start_time + datetime.timedelta(
+            hours=float(file_timestamp)
+        )
+        return timestamp
+
     def process_depth_to_impact(self, waterdepth_filenames):
         impact_module = impactModule(self.settings, self.settings.end_result_type)
         raster_filenames = []
@@ -85,19 +96,13 @@ class ProcessFlash:
                 raster_filenames.append(
                     impact_module.create_impact_raster(vector_list, raster)
                 )
-    
-                file_stem = Path(raster).stem
-                file_timestamp = float(file_stem[-3:])
-                timestamp = self.settings.start_time + datetime.timedelta(
-                    hours=float(file_timestamp)
-                )
-                timestamps.append(timestamp)
+                timestamps.append(self.tuflow_tif_output_to_relative_timestamp(raster))
             else:
                 logger.info("Geoserver vulnerability not implemented yet")
         if self.settings.end_result_type == "raster":
             self.post_temporal_raster_to_lizard(
-                    raster_filenames, self.settings.impact_raster_uuid, timestamps
-                )
+                raster_filenames, self.settings.impact_raster_uuid, timestamps
+            )
         else:
             logger.info("Geoserver vulnerability not implemented yet")
 
@@ -113,12 +118,7 @@ class ProcessFlash:
         ) in (
             filenames
         ):  # please note: might cause problems with water level rasters as well
-            file_stem = Path(file).stem
-            file_timestamp = float(file_stem[-3:])
-            timestamp = self.settings.start_time + datetime.timedelta(
-                hours=float(file_timestamp)
-            )
-            timestamps.append(timestamp)
+            timestamps.append(self.tuflow_tif_output_to_relative_timestamp(file))
         return filenames, timestamps
 
     def project_geotiff_rasters(self):
@@ -353,7 +353,9 @@ class ProcessFlash:
 
             # get geographic coordinate system information to select the desired geographic coordinate system
             srs = osr.SpatialReference()
-            srs.ImportFromEPSG(7856)  #  the coordinate system of the output
+            srs.ImportFromEPSG(
+                self.settings.projection
+            )  #  the coordinate system of the output
             out_tif.SetProjection(
                 srs.ExportToWkt()
             )  #  give the new layer projection information
