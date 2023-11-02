@@ -367,7 +367,7 @@ class prepareData:
         logger.debug("Wrote new time-index-only netcdf to %s", dest_file)
 
     def reproject_bom(self, x, y):
-        transformer = Transformer.from_proj(Proj("epsg:4326"), Proj("epsg:7856"))
+        transformer = Transformer.from_proj(Proj("epsg:4326"), Proj("epsg:{}".format(self.settings.projection)))
         x2, y2 = transformer.transform(y, x)
         return x2, y2
 
