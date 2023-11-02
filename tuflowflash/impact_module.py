@@ -118,7 +118,7 @@ class impactModule:
         ).astype(dtype=np.float32)
         for vector_file in vector_list:
             geodataframe = gpd.read_file(vector_file)
-            impact_data = rasterize_vector_column(
+            rasterize_vector_column(
                 geodataframe,
                 "vulnerability_class",
                 impact_data,
