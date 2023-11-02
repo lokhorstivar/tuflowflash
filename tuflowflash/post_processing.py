@@ -62,10 +62,7 @@ class ProcessFlash:
             )
 
         if self.settings.determine_impact:
-            filenames, timestamps = self.process_depth_to_impact(waterdepth_filenames)
-            self.post_temporal_raster_to_lizard(
-                filenames, self.settings.impact_raster_uuid, timestamps
-            )
+            self.process_depth_to_impact(waterdepth_filenames)
         logger.info("Tuflow results posted to Lizard")
 
     def process_depth_to_impact(self, waterdepth_filenames):
@@ -84,17 +81,25 @@ class ProcessFlash:
                     self.settings.buildings_file, self.settings.projection, raster
                 )
             )
-            raster_filenames.append(
-                impact_module.create_impact_raster(vector_list, raster)
-            )
-
-            file_stem = Path(raster).stem
-            file_timestamp = float(file_stem[-3:])
-            timestamp = self.settings.start_time + datetime.timedelta(
-                hours=float(file_timestamp)
-            )
-            timestamps.append(timestamp)
-        return raster_filenames, timestamps
+            if self.settings.end_result_type == "raster":
+                raster_filenames.append(
+                    impact_module.create_impact_raster(vector_list, raster)
+                )
+    
+                file_stem = Path(raster).stem
+                file_timestamp = float(file_stem[-3:])
+                timestamp = self.settings.start_time + datetime.timedelta(
+                    hours=float(file_timestamp)
+                )
+                timestamps.append(timestamp)
+            else:
+                logger.info("Geoserver vulnerability not implemented yet")
+        if self.settings.end_result_type == "raster":
+            self.post_temporal_raster_to_lizard(
+                    raster_filenames, self.settings.impact_raster_uuid, timestamps
+                )
+        else:
+            logger.info("Geoserver vulnerability not implemented yet")
 
     def select_rasters_to_upload(self, raster_list):
         filenames = []
