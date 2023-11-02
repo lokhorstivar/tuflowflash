@@ -88,7 +88,7 @@ class impactModule:
             vulnerable_buildings_results = self.translate_to_classes(
                 buildings, 0.15, 0.3
             )
-            output_filename = depth_raster.replace(".tif", "_roads.gpkg")
+            output_filename = depth_raster.replace(".tif", "_buildings.gpkg")
             vulnerable_buildings_results.to_file(
                 str(output_filename), layer="vulnerable_buildings"
             )
