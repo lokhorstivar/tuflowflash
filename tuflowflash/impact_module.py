@@ -2,6 +2,7 @@ from rasterstats import zonal_stats
 import geopandas as gpd
 import rasterio
 from rasterio import features
+import numpy as np
 
 BUFFER_SIZE = 5
 CAP_STYLE = 2
