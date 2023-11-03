@@ -21,12 +21,16 @@ OWN_EXCEPTIONS = (
 )
 
 
-def send_email(subject, body, email_adress, email_password, attendees):
+def send_email(
+    subject, email_text_file, email_adress, email_password, attendees, error
+):
     # msg calss from email.message to easily format the email
     msg = EmailMessage()
     msg["Subject"] = subject
     msg["From"] = email_adress
     msg["To"] = attendees
+    with open(email_text_file) as f:
+        body = f.read().format(error)
     msg.set_content(body)
 
     with smtplib.SMTP_SSL("smtp.gmail.com", 465) as smtp:
@@ -78,7 +82,7 @@ def get_parser():
 
 def main():
     """Call command with args from parser."""
-    ## read settings
+    # read settings
     options = get_parser().parse_args()
     if options.verbose:
         log_level = logging.DEBUG
@@ -137,7 +141,7 @@ def main():
         if settings.convert_csv_to_bc:
             data_prepper.convert_csv_file_to_bc_file()
             if settings.custom_residual_tide:
-                subprocess.run(["python",settings.custom_residual_script])
+                subprocess.run(["python", settings.custom_residual_script])
         else:
             logger.info("not converting csv to boundary conditions, skipping..")
 
@@ -173,11 +177,12 @@ def main():
 
     except Exception as e:
         send_email(
-            "HVFMS Forecast failed",
-            "Hunter valley forecast run crashed, please look at the logging for more information",
+            settings.email_subject,
+            settings.email_text_file,
             settings.email_adress,
             settings.email_password,
             settings.email_attendees,
+            e,
         )
         if options.verbose:
             logger.exception(e)
