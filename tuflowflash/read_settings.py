@@ -78,6 +78,8 @@ email_settings = {
     "email_adress": str,
     "email_password": str,
     "email_attendees": str,
+    "email_text_file": Path,
+    "email_subject": str,
 }
 
 
