@@ -67,7 +67,9 @@ class ProcessFlash:
 
     def tuflow_tif_output_to_relative_timestamp(self, filename):
         file_stem = Path(filename).stem
-        if file_stem.endswith("_00"):
+        if file_stem.endswith("_00_00"):
+            file_timestamp = float(file_stem[-9:-6]
+        elif file_stem.endswith("_00"):
             file_timestamp = float(file_stem[-6:-3])
         else:
             file_timestamp = float(file_stem[-3:])
