@@ -34,18 +34,38 @@ def rasterize_vector_column(geodataframe, value_column, outfile, transform,depth
     with rasterio.open(depth_raster) as src:
         shape = src.shape
 
-    for index, row in geodataframe.iterrows():
-        geom = row["geometry"]
-        value = row[value_column]
+    ones_list = list(geodataframe[geodataframe[value_column]==1]["geometry"])
+    if ones_list:
         features.rasterize(
-            [geom],
+            ones_list,
             out_shape=shape,
             out=outfile,
             transform=transform,
             all_touched=False,
-            default_value=value,
+            default_value=1,
         )
 
+    twos_list = list(geodataframe[geodataframe[value_column]==2]["geometry"])
+    if twos_list:
+        features.rasterize(
+            twos_list,
+            out_shape=shape,
+            out=outfile,
+            transform=transform,
+            all_touched=False,
+            default_value=2,
+        )
+
+    threes_list = list(geodataframe[geodataframe[value_column]==3]["geometry"])
+    if threes_list:
+        features.rasterize(
+            threes_list,
+            out_shape=shape,
+            out=outfile,
+            transform=transform,
+            all_touched=False,
+            default_value=3,
+        )
 
 class impactModule:
     def __init__(self, settings, end_result_type):
