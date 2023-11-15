@@ -27,6 +27,7 @@ Tuflow_settings = {
     "soil_moisture_awra_l_url": str,
     "soil_moisture_folder": Path,
     "projection": int,
+    "pu": int,
 }
 
 lizard_settings = {
