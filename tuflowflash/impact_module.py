@@ -88,6 +88,7 @@ class impactModule:
 
         return vector_layer
 
+    #determine the vulnerability of roads
     def determine_vulnerability_roads(self, geopackage, crs, depth_raster):
         roads = gpd.read_file(geopackage, crs=crs)
         geometry_linestrings = roads.geometry
@@ -110,6 +111,7 @@ class impactModule:
             )
         return output_filename
 
+    #determine vulnerability of buildings
     def determine_vulnerability_buildings(self, geopackage, crs, depth_raster):
         buildings = gpd.read_file(geopackage, crs=crs)
         with rasterio.open(depth_raster) as src:
