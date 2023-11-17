@@ -417,7 +417,7 @@ class prepareData:
         utc_end = local_end.astimezone(pytz.utc)
         local_reference = local.localize(self.settings.reference_time, is_dst=None)
         utc_reference = local_reference.astimezone(pytz.utc)
-        for f in glob.glob(str(self.settings.historic_rain_folder) + "/*.nc"):
+        for f in glob.glob(str(self.settings.historic_rain_folder) + "/*00.nc"):
             f_timestamp = pytz.utc.localize(
                 datetime.strptime(f.split(".")[-2], "%Y%m%d%H%M%S")
             )
