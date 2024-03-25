@@ -80,7 +80,7 @@ def get_parser():
     return parser
 
 
-def main():
+def main(rainfall_mp_factor=1, settings=None):
     """Call command with args from parser."""
     # read settings
     options = get_parser().parse_args()
@@ -92,10 +92,11 @@ def main():
     logging.basicConfig(
         level=log_level, format="%(asctime)s %(levelname)s: %(message)s"
     )
+    if settings is None:
+        settings = read_settings.FlashSettings(
+            options.settings_file, options.reference_time
+        )
 
-    settings = read_settings.FlashSettings(
-        options.settings_file, options.reference_time
-    )
     try:
         # Historical precipitation
         data_prepper = prepare_data.prepareData(settings)
@@ -127,12 +128,16 @@ def main():
             if settings.get_bom_nowcast:
                 previous_time = get_latest_raingrid(settings.rain_grids_folder)
                 data_prepper.forecast_nowcast_netcdf_to_ascii(
-                    settings.netcdf_nowcast_rainfall_file, previous_time
+                    settings.netcdf_nowcast_rainfall_file,
+                    previous_time,
+                    rainfall_mp_factor,
                 )
             if settings.get_bom_forecast:
                 previous_time = get_latest_raingrid(settings.rain_grids_folder) + 1.5
                 data_prepper.forecast_nowcast_netcdf_to_ascii(
-                    settings.netcdf_forecast_rainfall_file, previous_time
+                    settings.netcdf_forecast_rainfall_file,
+                    previous_time,
+                    rainfall_mp_factor,
                 )
             data_prepper.write_ascii_csv()
         else:
