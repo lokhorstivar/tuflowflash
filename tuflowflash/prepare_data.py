@@ -108,7 +108,9 @@ class prepareData:
         xds = rioxarray.open_rasterio(sourcePath)
         xds = xds.rio.write_crs(4326)
         source = xds.rio.clip(geodf.geometry.apply(mapping), geodf.crs)
-        xds_lonlat = source.rio.reproject("EPSG:{}".format(self.settings.projection), resolution=5500)
+        xds_lonlat = source.rio.reproject(
+            "EPSG:{}".format(self.settings.projection), resolution=5500
+        )
         xds_lonlat = xds_lonlat.rename("rainfall_depth")
         xds_lonlat[:, :, :] = np.where(
             xds_lonlat == xds_lonlat.attrs["_FillValue"], 0, xds_lonlat
@@ -367,11 +369,15 @@ class prepareData:
         logger.debug("Wrote new time-index-only netcdf to %s", dest_file)
 
     def reproject_bom(self, x, y):
-        transformer = Transformer.from_proj(Proj("epsg:4326"), Proj("epsg:{}".format(self.settings.projection)))
+        transformer = Transformer.from_proj(
+            Proj("epsg:4326"), Proj("epsg:{}".format(self.settings.projection))
+        )
         x2, y2 = transformer.transform(y, x)
         return x2, y2
 
-    def forecast_nowcast_netcdf_to_ascii(self, netcdf_file, previous_time):
+    def forecast_nowcast_netcdf_to_ascii(
+        self, netcdf_file, previous_time, rainfall_mp_factor=1
+    ):
         nc_data_obj = nc.Dataset(netcdf_file)
         Lon = nc_data_obj.variables["x"][:]
         Lat = nc_data_obj.variables["y"][:]
@@ -383,6 +389,7 @@ class prepareData:
         precip_arr = np.asarray(
             nc_data_obj.variables["rainfall_depth"][time_indexes, :, :]
         )  # read data into an array
+
         # the upper-left and lower-right coordinates of the image
         LonMin, LatMax, LatMin = [Lon.min(), Lat.max(), Lat.min()]
 
@@ -390,9 +397,12 @@ class prepareData:
         N_Lat = len(Lat)
         Lat_Res = (LatMax - LatMin) / (float(N_Lat) - 1)
 
-        for i in range(len(precip_arr[:])):
-            header = "ncols     %s\n" % precip_arr[i].shape[1]
-            header += "nrows    %s\n" % precip_arr[i].shape[0]
+        # multiply array with multiplication factor (default = 1)
+        precip_arr_mp = precip_arr * rainfall_mp_factor
+
+        for i in range(len(precip_arr_mp[:])):
+            header = "ncols     %s\n" % precip_arr_mp[i].shape[1]
+            header += "nrows    %s\n" % precip_arr_mp[i].shape[0]
             header += "xllcorner {}\n".format(LonMin)
             header += "yllcorner {}\n".format(LatMin)
             header += "cellsize {}\n".format(Lat_Res)
@@ -403,7 +413,7 @@ class prepareData:
                     self.settings.rain_grids_folder,
                     str(nc_data_obj.variables["time"][time_indexes[i]]) + ".asc",
                 ),
-                precip_arr[i],
+                precip_arr_mp[i],
                 header=header,
                 fmt="%1.2f",
                 comments="",
