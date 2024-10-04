@@ -132,7 +132,6 @@ class impactModule:
             else fill_value,
             axis=1,
         )
-        print(shapes)
         return shapes
 
     def determine_floor_level(
@@ -298,5 +297,8 @@ class impactModule:
     def create_impact_vector(self, layer_dict, impact_vector_output_path):
         for i, (layer_name, layer_location) in enumerate(layer_dict.items()):
             points = gpd.read_file(layer_location)
-            points = points[["vulnerability_class", "geometry"]]
+            # if "Name" in points.columns:
+            #     points = points[["Name", "vulnerability_class", "geometry"]]
+            # else:
+            #     points = points[["vulnerability_class", "geometry"]]
             points.to_file(impact_vector_output_path, driver="GPKG", layer=layer_name)
