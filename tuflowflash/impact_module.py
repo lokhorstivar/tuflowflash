@@ -237,7 +237,7 @@ class impactModule:
             buffer_size=buffer_size,
             fill_value=-9999,
         )
-
+        
         vulnerable_evacuation_centres_results = self.translate_to_classes(
             evacuation_centres_sampled, -0.3, 0, 0.15
         )
