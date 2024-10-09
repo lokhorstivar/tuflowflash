@@ -30,6 +30,67 @@ YELLOW_RGB = (255, 229, 147)
 RED_RGB = (245, 189, 221)
 
 
+def create_overall_impact_summary_table(
+    impact_vector_path, layer_names
+):
+    impact_assessment_statistics_buildings = gpd.read_file(
+        impact_vector_path, layer=layer_names[0]
+    )
+    impact_assessment_statistics_road_closure_points = gpd.read_file(
+        impact_vector_path, layer=layer_names[1]
+    )
+    impact_assessment_statistics_evacuation_centre = gpd.read_file(
+        impact_vector_path, layer=layer_names[2]
+    )
+    impact_assessment_statistics_council_assets = gpd.read_file(
+        impact_vector_path, layer=layer_names[3]
+    )
+
+    impact_assessment_statistics_buildings = (
+        impact_assessment_statistics_buildings.rename(columns={"_StrucType": "Type"})[
+            ["Type", "vulnerability_class"]
+        ]
+    )
+    impact_assessment_statistics_buildings["Feature"] = "Buildings"
+
+    impact_assessment_statistics_road_closure_points = (
+        impact_assessment_statistics_road_closure_points[["vulnerability_class"]]
+    )
+    impact_assessment_statistics_road_closure_points["Type"] = "Road Flooding Points"
+    impact_assessment_statistics_road_closure_points["Feature"] = "Road Flooding Points"
+
+    impact_assessment_statistics_evacuation_centre = (
+        impact_assessment_statistics_evacuation_centre[["Type", "vulnerability_class"]]
+    )
+    impact_assessment_statistics_evacuation_centre["Feature"] = "Evacuation Centres"
+
+    impact_assessment_statistics_council_assets = (
+        impact_assessment_statistics_council_assets.rename(columns={"Service": "Type"})[
+            ["Type", "vulnerability_class"]
+        ]
+    )
+    impact_assessment_statistics_council_assets["Feature"] = "Council Services"
+
+    total_impact_assessment = pd.concat(
+        [
+            impact_assessment_statistics_buildings,
+            impact_assessment_statistics_road_closure_points,
+            impact_assessment_statistics_evacuation_centre,
+            impact_assessment_statistics_council_assets,
+        ],
+        axis=0,
+    )
+    total_impact_assessment = total_impact_assessment.loc[
+        total_impact_assessment["vulnerability_class"] > 1.0
+    ]
+
+    total_impact_assessment_grouped = total_impact_assessment.groupby(
+        ["Feature", "Type"]
+    )[["vulnerability_class"]].count()
+
+    return total_impact_assessment_grouped
+
+
 def create_zone_breakdown_table(impact_vector_path, zone_file_path, layer_names, type):
     impact_assessment_statistics_buildings = gpd.read_file(
         impact_vector_path, layer=layer_names[0]
@@ -70,6 +131,13 @@ def create_zone_breakdown_table(impact_vector_path, zone_file_path, layer_names,
         else:
             ic4 = 0
         building_count = len(impact_df_subset)
+
+        if t == "Council Assets":
+            t = "Council Services"
+
+        if t == "Road Closure Points":
+            t = "Road Flooding Points"
+
         return pd.Series([t, building_count, ic1, ic2, ic3, ic4])
 
     zone_buildings = zones.copy()
@@ -162,6 +230,10 @@ def create_asset_breakdown_table(impact_vector_path, zone_file_path, layer_name,
     else:
         pass
 
+    impact_assessment_statistics["Name"] = impact_assessment_statistics.apply(
+        lambda row: row.Name.replace("’", "'") if "’" in row.Name else row.Name, axis=1
+    )  # name issues
+
     regions = gpd.read_file(zone_file_path)
     suburbs = regions.loc[regions["Type"] == "Suburb"]
 
@@ -222,13 +294,13 @@ def create_building_table(impact_vector_path, zone_file_path, layer_name):
     def assign_impact_category(row):
         vulnerability_class = row.vulnerability_class
         if vulnerability_class == 1:
-            return pd.Series([1, 0, 0, 0])
+            return pd.Series([1, 1, 0, 0, 0])
         elif vulnerability_class == 2:
-            return pd.Series([0, 1, 0, 0])
+            return pd.Series([1, 0, 1, 0, 0])
         elif vulnerability_class == 3:
-            return pd.Series([0, 0, 1, 0])
+            return pd.Series([1, 0, 0, 1, 0])
         elif vulnerability_class == 4:
-            return pd.Series([0, 0, 0, 1])
+            return pd.Series([1, 0, 0, 0, 1])
         else:
             return None
 
@@ -236,7 +308,7 @@ def create_building_table(impact_vector_path, zone_file_path, layer_name):
         lambda row: ("N/A" if row.max_depth == -9999 else str(round(row.max_depth, 2))),
         axis=1,
     )
-    impact_assessment_statistics[["None", "Minor", "Moderate", "Severe"]] = (
+    impact_assessment_statistics[["#", "None", "Minor", "Moderate", "Severe"]] = (
         impact_assessment_statistics.apply(
             lambda row: assign_impact_category(row), axis=1
         )
@@ -244,7 +316,7 @@ def create_building_table(impact_vector_path, zone_file_path, layer_name):
 
     impact_assessment_statistics = impact_assessment_statistics.groupby(
         ["Suburb", "Type"]
-    )[["None", "Minor", "Moderate", "Severe"]].sum()
+    )[["#", "None", "Minor", "Moderate", "Severe"]].sum()
 
     suburbs = impact_assessment_statistics.index.get_level_values("Suburb")
     res_type = impact_assessment_statistics.index.get_level_values("Type")
@@ -264,10 +336,10 @@ def create_building_table(impact_vector_path, zone_file_path, layer_name):
 
         for et in expected_types:
             if et not in res_type:
-                appendages.append(pd.Series([0, 0, 0, 0], name=(unique_suburb, et)))
+                appendages.append(pd.Series([0, 0, 0, 0, 0], name=(unique_suburb, et)))
 
     missing_categories = pd.concat(appendages, axis=1).T
-    missing_categories.columns = ["None", "Minor", "Moderate", "Severe"]
+    missing_categories.columns = ["#", "None", "Minor", "Moderate", "Severe"]
 
     impact_assessment_statistics = pd.concat(
         [impact_assessment_statistics, missing_categories], axis=0
@@ -307,10 +379,10 @@ def create_impact_guide_table():
     council_services_impact_guide = pd.DataFrame(
         data={
             "Waterdepth over base level [m]": [
-                "> 0.15",
-                "0 - 0.15",
-                "-0.3 - 0",
-                "< -0.3",
+                "> 1.0",
+                "0.25 - 1.0",
+                "0.0 - 0.25",
+                "< 0",
             ],
             "Impact Category": ["Severe", "Moderate", "Minor", "None"],
         }
@@ -319,10 +391,10 @@ def create_impact_guide_table():
     evac_centers_impact_guide = pd.DataFrame(
         data={
             "Waterdepth over floor level [m]": [
-                "> 0.15",
-                "0 - 0.15",
-                "-0.3 - 0",
-                "< -0.3",
+                "> 1.0",
+                "0.25 - 1.0",
+                "0.0 - 0.25",
+                "< 0",
             ],
             "Impact Category": ["Severe", "Moderate", "Minor", "None"],
         }
@@ -800,6 +872,54 @@ class PdfFile(FPDF):
         y3 = self.get_y()
         self.line(x_left, y3, x_right, y3)
 
+    def add_main_impact_summary_table(self, x, y, table_data):
+
+        self.set_font(self.font_name, size=6)
+        
+        table_data = table_data.rename(columns={"vulnerability_class": "Total Impacted"})
+        table_data = table_data.sort_index(level=0)
+        features = list(table_data.index.get_level_values(0))
+        
+        table_data_processed = [["Feature", "Type"] + list(table_data.columns)]
+  
+        for i, (_, row) in enumerate(table_data.iterrows()):
+            data = [row.name[0], row.name[1]] + list(row.values)
+            table_data_processed.append(data)
+
+        blue = (0, 0, 0)
+        grey = (200, 200, 200)
+
+        self.set_xy(x, y)
+        
+        align = "LEFT"
+
+        headings_style = FontFace(emphasis="BOLD", color=blue, fill_color=grey)
+
+        with self.table(
+            line_height=self.font_size,
+            width=90,
+            col_widths=(20, 20, 10),
+            headings_style=headings_style,
+            text_align="LEFT",
+            padding=1,
+            align=align,
+        ) as table:
+            
+            current_feature = ""
+        
+            for r_no, data_row in enumerate(table_data_processed):
+                row = table.row()
+            
+                row_feature = data_row[0]
+    
+                for i, datum in enumerate(data_row):
+                    if i == 0:
+                        if row_feature != current_feature:
+                            current_feature = row_feature
+                            row.cell(str(datum), rowspan=features.count(row_feature))
+                    else:
+                        row.cell(str(datum))
+    
     def add_main_summary_table(
         self,
         x,
@@ -1141,7 +1261,7 @@ class PdfFile(FPDF):
                 self.ln(line_height)  # move cursor back to the left margin
         y3 = self.get_y()
         self.line(x_left, y3, x_right, y3)
-
+        
     def add_asset_table(self, x, y, table_data, emphasize_column, title):
 
         self.set_font(self.font_name, size=6)
@@ -1230,7 +1350,7 @@ class PdfFile(FPDF):
         with self.table(
             line_height=self.font_size,
             width=90,
-            col_widths=(20, 20, 10, 10, 13, 10),
+            col_widths=(20, 20, 10, 10, 10, 13, 10),
             headings_style=headings_style,
             text_align="LEFT",
             padding=1,
@@ -1251,13 +1371,13 @@ class PdfFile(FPDF):
                         else:
                             row.cell(str(datum))
                     else:
-                        if i == 2 and r_no > 0 and datum > 0:
+                        if i == 3 and r_no > 0 and datum > 0:
                             style = FontFace(fill_color=GREEN_RGB)
-                        elif i == 3 and r_no > 0 and datum > 0:
-                            style = FontFace(fill_color=BLUE_RGB)
                         elif i == 4 and r_no > 0 and datum > 0:
-                            style = FontFace(fill_color=YELLOW_RGB)
+                            style = FontFace(fill_color=BLUE_RGB)
                         elif i == 5 and r_no > 0 and datum > 0:
+                            style = FontFace(fill_color=YELLOW_RGB)
+                        elif i == 6 and r_no > 0 and datum > 0:
                             style = FontFace(fill_color=RED_RGB)
                         else:
                             style = None
@@ -1953,41 +2073,55 @@ class CreateReport:
         self.pdf = PdfFile()
         self.pdf.initiate_layout()
 
-    def create_map(self, map_region, y_top=45, add_link=False):
+    def create_map(
+        self, map_region, y_top=45, add_link=False, background_map_crs="epsg:3857"
+    ):
 
         with rasterio.open(
             rf"d:\Royal HaskoningDHV\P-PA3396-Townsville-FLASH - WIP\python\impact_module_update\background_map_{map_region}.png"
         ) as src:
             bounds_geom = box(*src.bounds)
+            background_map_profile = src.profile
 
-        fig, ax = plt.subplots(1, figsize=(14, 8))
+        bounds = gpd.GeoDataFrame(
+            data={"geometry": [bounds_geom]}, crs=background_map_crs
+        )
+
+        ratio = background_map_profile.get("width") / background_map_profile.get(
+            "height"
+        )
+
+        fig, ax = plt.subplots(1, figsize=(14, ratio * 14))
 
         marker_legend_handles = []
 
         markers = {
             "Buildings": "o",
-            "Evacuation Centre": "*",
+            "Evacuation Centre": "D",
             "Council Assets": "v",
-            "Road Closure Points": "x",
+            "Road Closure Points": "X",
         }
 
         exclude_non_impacted = ["Buildings", "Road Closure Points"]
 
         for layer in self.layer_names:
             shape = gpd.read_file(self.impact_vector_path, layer=layer)
-            shape = shape.loc[shape.within(bounds_geom)]
+            shape = shape.to_crs(crs=background_map_crs)
+            shape = shape.loc[shape.within(bounds.geometry.iloc[0])]
 
             if layer in exclude_non_impacted:
                 cmap = LinearSegmentedColormap.from_list(
                     "townsville_impact",
                     [(0, (0, 0, 0, 0)), (0.33, "blue"), (0.66, "yellow"), (1, "red")],
                 )
-
-                shape.plot(
+                shape_no_none = shape.loc[shape["vulnerability_class"] != 1.0]
+                shape_no_none.plot(
                     ax=ax,
                     marker=markers[layer],
                     markersize=30,
                     column="vulnerability_class",
+                    edgecolor="black",
+                    linewidth=0.5,
                     cmap=cmap,
                     vmin=1,
                     vmax=4,
@@ -2000,9 +2134,10 @@ class CreateReport:
                 shape.plot(
                     ax=ax,
                     marker=markers[layer],
-                    markersize=50,
+                    markersize=30,
                     column="vulnerability_class",
-                    # edgecolor='black',
+                    edgecolor="black",
+                    linewidth=0.5,
                     cmap=cmap,
                     vmin=1,
                     vmax=4,
@@ -2017,12 +2152,13 @@ class CreateReport:
                 Line2D([0], [0], color=cmap(0.66), lw=4),
                 Line2D([0], [0], color=cmap(0.99), lw=4),
             ],
-            ["Low", "Medium", "High", "Very High"],
+            ["None", "Minor", "Moderate", "Severe"],
             title="Impact Assessment",
             loc="upper right",
         )
 
         zones = gpd.read_file(self.zone_file)
+        zones = zones.to_crs(crs=background_map_crs)
         suburbs = zones.loc[zones["Type"] == "Suburb"]
         police_sector = zones.loc[zones["Type"] == "Police Sector"]
 
@@ -2057,6 +2193,7 @@ class CreateReport:
 
         marker_delineation_handles = []
         marker_delineation_handles.extend([custom_handle1, custom_handle2])
+
         legend_delineation = plt.legend(
             handles=marker_delineation_handles,
             loc="lower left",
@@ -2064,6 +2201,12 @@ class CreateReport:
         )
 
         for marker_name, marker_style in markers.items():
+            if marker_name == "Council Assets":
+                marker_name = "Council Services"
+
+            if marker_name == "Road Closure Points":
+                marker_name = "Road Flooding Points"
+
             marker_legend_handles.append(
                 Line2D(
                     [],
@@ -2085,6 +2228,7 @@ class CreateReport:
         ax.add_artist(legend_risk)
         ax.add_artist(legend_markers)
         ax.add_artist(legend_delineation)
+
         with rasterio.open(
             rf"d:\Royal HaskoningDHV\P-PA3396-Townsville-FLASH - WIP\python\impact_module_update\background_map_{map_region}.png"
         ) as src:
@@ -2124,55 +2268,16 @@ class CreateReport:
         if add_link:
             self.pdf.contents["| Map |"] = self.pdf.add_link()
 
-    def create_main_table(self, y_start):
-        summary_tables = {}
-
-        for layer in self.layer_names:
-            impact_assessment_statistics = gpd.read_file(
-                self.impact_vector_path, layer=layer
-            )
-            vulnerability_class = [1, 2, 3, 4]
-
-            statistics_df = pd.DataFrame(data={"Impact category": vulnerability_class})
-            statistics_df["Amount"] = statistics_df.apply(
-                lambda row: len(
-                    impact_assessment_statistics.loc[
-                        impact_assessment_statistics["vulnerability_class"]
-                        == row["Impact category"]
-                    ]
-                ),
-                axis=1,
-            )
-            statistics_df["[%]"] = statistics_df.apply(
-                lambda row: round(
-                    (
-                        len(
-                            impact_assessment_statistics.loc[
-                                impact_assessment_statistics["vulnerability_class"]
-                                == row["Impact category"]
-                            ]
-                        )
-                        / len(impact_assessment_statistics)
-                    )
-                    * 100,
-                    2,
-                ),
-                axis=1,
-            )
-
-            no_of_features = len(impact_assessment_statistics)
-            summary_table_name = f"{layer} [{no_of_features}]\n"
-            summary_tables[summary_table_name] = statistics_df
-
-        x_pos = [5, 55, 105, 155]
-        for i, (name, table) in enumerate(summary_tables.items()):
-            self.pdf.add_table(
-                x_pos[i], y_start, table.to_dict(), x_start=x_pos[i], title=name
-            )
+    def create_overall_impact_summary(self, y_start):
+        create_overall_impact_summary = create_overall_impact_summary_table(
+            impact_vector_path=self.impact_vector_path,
+            layer_names=self.layer_names,
+        )
+        
+        self.pdf.add_main_impact_summary_table(x=5, y=y_start, table_data=create_overall_impact_summary)
         summary_table_link = self.pdf.add_link()
-        self.pdf.set_link(summary_table_link, y=210)
         self.pdf.contents["| Impact Summary |"] = summary_table_link
-
+         
     def add_zone_breakdown_table(self):
         table = create_zone_breakdown_table(
             impact_vector_path=self.impact_vector_path,
@@ -2309,6 +2414,11 @@ class CreateReport:
                     ["Name", "Type", "max_depth", "Impact"]
                 ]
                 emphasize_column = 3
+            elif self.layer_names[type] == "Council Assets":
+                assets_in_suburb = assets_in_suburb.drop("suburb_zone", axis=1)[
+                    ["Name", "Service", "max_depth", "Impact"]
+                ]
+                emphasize_column = 3
             else:
                 assets_in_suburb = assets_in_suburb.drop("suburb_zone", axis=1)[
                     ["Name", "max_depth", "Impact"]
@@ -2322,7 +2432,7 @@ class CreateReport:
             if y + 2.5 * len(assets_in_suburb) > 250:
                 if x == 5:
                     y = 50
-                    x = 105
+                    x = 110
                 else:
                     x = 5
                     y = 50
@@ -2339,8 +2449,8 @@ class CreateReport:
             y = self.pdf.get_y() + 5
             if y > 250 and x == 5:
                 y = 50
-                x = 105
-            elif y > 250 and x == 105:
+                x = 110
+            elif y > 250 and x == 110:
                 x = 5
                 y = 50
                 self.pdf.add_page()
@@ -2402,7 +2512,7 @@ if __name__ == "__main__":
         fontsize=12,
         bold=True,
     )
-    cm.create_main_table(y_start=65)
+    cm.create_overall_impact_summary(y_start=65)
 
     cm.pdf.add_page()
 
@@ -2416,32 +2526,32 @@ if __name__ == "__main__":
         bold=True,
     )
 
-    cm.create_map(map_region="balgal_bay", y_top=170, add_link=True)
+    cm.create_map(map_region="townsville_north", y_top=127)
     cm.pdf.add_text(
         x=3,
-        y=160,
-        text="Balgal Bay",
-        alignment="L",
-        fontsize=8,
-        bold=True,
-    )
-
-    cm.pdf.add_page()
-    
-    cm.create_map(map_region="townsville_north", y_top=50)
-    cm.pdf.add_text(
-        x=3,
-        y=40,
+        y=117,
         text="Townsville North",
         alignment="L",
         fontsize=8,
         bold=True,
     )
+    cm.pdf.add_page()
 
-    cm.create_map(map_region="townsville_south", y_top=170)
+    cm.create_map(map_region="townsville_central", y_top=50)
     cm.pdf.add_text(
         x=3,
-        y=160,
+        y=40,
+        text="Townsville Central",
+        alignment="L",
+        fontsize=8,
+        bold=True,
+    )
+    cm.pdf.add_page()
+
+    cm.create_map(map_region="townsville_south", y_top=50)
+    cm.pdf.add_text(
+        x=3,
+        y=40,
         text="Townsville South",
         alignment="L",
         fontsize=8,
