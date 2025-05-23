@@ -115,95 +115,93 @@ def main(rainfall_mp_factor=1, settings=None):
         else:
             logger.info("not gathering bom forecast rainfall data, skipping..")
 
-    except:
-        pass
-    #     if settings.get_bom_nowcast:
-    #         data_prepper.get_precipitation_nowcast()
-    #     else:
-    #         logger.info("not gathering bom nowcast rainfall data, skipping..")
+        logger.info("past edits")
+        if settings.get_bom_nowcast:
+            data_prepper.get_precipitation_nowcast()
+        else:
+            logger.info("not gathering bom nowcast rainfall data, skipping..")
 
-    #     if (s
-    #         settings.get_bom_forecast
-    #         or settings.get_bom_nowcast
-    #         or settings.use_bom_historical
-    #     ):
-    #         for f in glob.glob(str(settings.rain_grids_folder) + "/*.asc"):
-    #             os.remove(f)
-    #         if settings.use_bom_historical:
-    #             data_prepper.select_hindcast_netcdf_files()
-    #         if settings.get_bom_nowcast:
-    #             previous_time = get_latest_raingrid(settings.rain_grids_folder)
-    #             data_prepper.forecast_nowcast_netcdf_to_ascii(
-    #                 settings.netcdf_nowcast_rainfall_file,
-    #                 previous_time,
-    #                 rainfall_mp_factor,
-    #             )
-    #         if settings.get_bom_forecast:
-    #             previous_time = get_latest_raingrid(settings.rain_grids_folder) + 1.5
-    #             data_prepper.forecast_nowcast_netcdf_to_ascii(
-    #                 settings.netcdf_forecast_rainfall_file,
-    #                 previous_time,
-    #                 rainfall_mp_factor,
-    #             )
-    #         data_prepper.write_ascii_csv()
-    #     else:
-    #         logger.info("not converting bom products to ascii, skipping..")
+        if (settings.get_bom_forecast
+            or settings.get_bom_nowcast
+            or settings.use_bom_historical
+        ):
+            for f in glob.glob(str(settings.rain_grids_folder) + "/*.asc"):
+                os.remove(f)
+            if settings.use_bom_historical:
+                data_prepper.select_hindcast_netcdf_files()
+            if settings.get_bom_nowcast:
+                previous_time = get_latest_raingrid(settings.rain_grids_folder)
+                data_prepper.forecast_nowcast_netcdf_to_ascii(
+                    settings.netcdf_nowcast_rainfall_file,
+                    previous_time,
+                    rainfall_mp_factor,
+                )
+            if settings.get_bom_forecast:
+                previous_time = get_latest_raingrid(settings.rain_grids_folder) + 1.5
+                data_prepper.forecast_nowcast_netcdf_to_ascii(
+                    settings.netcdf_forecast_rainfall_file,
+                    previous_time,
+                    rainfall_mp_factor,
+                )
+            data_prepper.write_ascii_csv()
+        else:
+            logger.info("not converting bom products to ascii, skipping..")
 
-    #     if settings.convert_csv_to_bc:
-    #         data_prepper.convert_csv_file_to_bc_file()
+        if settings.convert_csv_to_bc:
+            data_prepper.convert_csv_file_to_bc_file()
 
-    #         if settings.custom_residual_tide:
-    #             subprocess.run(["python", settings.custom_residual_script])
+            if settings.custom_residual_tide:
+                subprocess.run(["python", settings.custom_residual_script])
             
-    #     else:
-    #         logger.info("not converting csv to boundary conditions, skipping..")
+        else:
+            logger.info("not converting csv to boundary conditions, skipping..")
 
-    #     logger.info("run simulation..")
+        logger.info("run simulation..")
 
-    #     # run simulation
-    #     if settings.run_simulation:
-    #         tuflow_simulation = run_tuflow.TuflowSimulation(settings)
-    #         logger.info("Starting...")
-    #         tuflow_simulation.run()
-    #     else:
-    #         logger.info("Not running Tuflow simulation, skipping..")
+        # run simulation
+        if settings.run_simulation:
+            tuflow_simulation = run_tuflow.TuflowSimulation(settings)
+            logger.info("Starting...")
+            tuflow_simulation.run()
+        else:
+            logger.info("Not running Tuflow simulation, skipping..")
 
-    #     # uploading to Lizard
-    #     post_processer = post_processing.ProcessFlash(settings)
-    #     if settings.track_historic_forecasts:
-    #         post_processer.track_historic_forecasts_in_lizard()
+        # uploading to Lizard
+        post_processer = post_processing.ProcessFlash(settings)
+        if settings.track_historic_forecasts:
+            post_processer.track_historic_forecasts_in_lizard()
 
-    #     if settings.post_to_lizard:
-    #         logger.info("Posting to lizard")
-    #         post_processer.process_tuflow()
-    #         # post_processer.upload_bom_precipitation() # LEGACY, OBSOLETE
-    #     else:
-    #         logger.info("Not uploading files to Lizard, skipping..")
+        if settings.post_to_lizard:
+            logger.info("Posting to lizard")
+            post_processer.process_tuflow()
+            # post_processer.upload_bom_precipitation() # LEGACY, OBSOLETE
+        else:
+            logger.info("Not uploading files to Lizard, skipping..")
 
-    #     if settings.archive_simulation:
-    #         post_processer.archive_simulation()
-    #     else:
-    #         logger.info("Not archiving files, skipping..")
+        if settings.archive_simulation:
+            post_processer.archive_simulation()
+        else:
+            logger.info("Not archiving files, skipping..")
 
-    #     if settings.clear_input_output:
-    #         logger.info("clearing in/output from simulation")
-    #         post_processer.clear_in_output()
-    #     else:
-    #         logger.info("not clearing in/output, skipping..")
-    #     return 0
+        if settings.clear_input_output:
+            logger.info("clearing in/output from simulation")
+            post_processer.clear_in_output()
+        else:
+            logger.info("not clearing in/output, skipping..")
+        return 0
 
-    # except Exception as e:
-    #     # send_email(
-    #     #     settings.email_subject,
-    #     #     settings.email_text_file,
-    #     #     settings.email_adress,
-    #     #     settings.email_password,
-    #     #     settings.email_attendees,
-    #     #     e,
-    #     # )
-    #     if options.verbose:
-    #         logger.exception(e)
-    #     else:
-    #         logger.error("↓↓↓↓↓   Pass --verbose to get more information   ↓↓↓↓↓")
-    #         logger.error(e)
-    #     return 1  # Exit code signalling an error.
+    except Exception as e:
+        # send_email(
+        #     settings.email_subject,
+        #     settings.email_text_file,
+        #     settings.email_adress,
+        #     settings.email_password,
+        #     settings.email_attendees,
+        #     e,
+        # )
+        if options.verbose:
+            logger.exception(e)
+        else:
+            logger.error("↓↓↓↓↓   Pass --verbose to get more information   ↓↓↓↓↓")
+            logger.error(e)
+        return 1  # Exit code signalling an error.
