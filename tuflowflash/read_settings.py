@@ -1,5 +1,4 @@
 from pathlib import Path
-
 import configparser as ConfigParser
 import datetime
 import logging
@@ -96,6 +95,7 @@ class FlashSettings:
     def __init__(self, settingsFile: Path, reference_time=None):
         self.settingsFile = settingsFile
         self.config = ConfigParser.RawConfigParser()
+     
         try:
             self.config.read(settingsFile)
         except FileNotFoundError as e:
@@ -111,7 +111,8 @@ class FlashSettings:
         self.read_settings_file(email_settings, "email")
 
         self.read_tcf_parameters(self.tcf_file)
-
+        logger.info(f"tuflow start time: {self.tuflow_start_time}")
+        logger.info(f"Reference time: {reference_time}")
         self.reference_time, self.start_time = self.convert_relative_time(
             self.tuflow_start_time, reference_time
         )
@@ -119,7 +120,6 @@ class FlashSettings:
         self.reference_time, self.end_time = self.convert_relative_time(
             self.tuflow_end_time, reference_time
         )
-
         logger.info("settings have been read")
 
     def extract_variable_from_tcf(self, line):
