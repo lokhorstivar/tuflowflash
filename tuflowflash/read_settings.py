@@ -111,8 +111,6 @@ class FlashSettings:
         self.read_settings_file(email_settings, "email")
 
         self.read_tcf_parameters(self.tcf_file)
-        logger.info(f"tuflow start time: {self.tuflow_start_time}")
-        logger.info(f"Reference time: {reference_time}")
         self.reference_time, self.start_time = self.convert_relative_time(
             self.tuflow_start_time, reference_time
         )

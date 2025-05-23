@@ -78,22 +78,16 @@ class prepareData:
         logger.info("succesfully prepared netcdf radar rainfall")
 
     def get_precipitation_forecast(self):
-        #sourcePath = Path(r"temp/forecast_rain.nc")
-        sourcePath = Path(r"D:\FLASH\01_Modelling\Tvlle_Combined\forcing_test_tobias\results_2025-01-31_01_00_00\forecast_rain.nc")
-        #self.download_bom_forecast_data(self.settings.bom_forecast_file)
-        logger.info("Here")
-        local_start = pd.to_datetime("31-01-2025 01:00:00").tz_localize("Australia/Sydney")#self.settings.start_time.astimezone()
-        local_reference = pd.to_datetime("31-01-2025 13:00:00").tz_localize("Australia/Sydney")#self.settings.reference_time.astimezone()
-        local_end = pd.to_datetime("03-02-2025 01:00:00").tz_localize("Australia/Sydney")#self.settings.end_time.astimezone()
+        sourcePath = Path(r"temp/forecast_rain.nc")
+        self.download_bom_forecast_data(self.settings.bom_forecast_file)
+
+        local_start = self.settings.start_time.astimezone()
+        local_reference = self.settings.reference_time.astimezone()
+        local_end = self.settings.end_time.astimezone()
         
         utc_start = local_start.astimezone(timezone.utc)
         utc_reference = local_reference.astimezone(timezone.utc)
         utc_end = local_end.astimezone(timezone.utc)
-
-        logger.info(f"LOCAL START: {local_start}")
-        logger.info(f"LOCAL REF: {local_reference}")
-        logger.info(f"LOCAL END: {local_end}")
-        logger.info(f"UTC TIME: {utc_reference}")
    
         self.write_forecast_netcdf_with_time_indexes(
             sourcePath=sourcePath,
@@ -103,6 +97,7 @@ class prepareData:
             end_time=utc_end,
             reference_time=utc_reference,
         )
+
         logger.info("succesfully prepared netcdf radar rainfall")
 
     def convert_csv_file_to_bc_file(self):
@@ -129,28 +124,18 @@ class prepareData:
         xds_lonlat[:, :, :] = np.where(
             xds_lonlat == xds_lonlat.attrs["_FillValue"], 0, xds_lonlat
         )
-        logger.info(start_time)
-        logger.info(f"START {start_time}")
-        logger.info(f"REF {reference_time}")
-        logger.info(f"END {end_time}")
-        
-
+     
         xds_lonlat = xds_lonlat.sel(time=slice(start_time, end_time))
-        logger.info(xds_lonlat.indexes["time"].to_datetimeindex())
+
         nc_datetime_index = xds_lonlat.indexes["time"].to_datetimeindex().tz_localize("UTC").tz_convert("Australia/Sydney")
         
         # convert to local timezone
         local_reference_time = pd.to_datetime(reference_time).tz_convert("Australia/Sydney").tz_localize(None)
-        logger.info(f"LOCAL_REF: {local_reference_time}")
-        logger.info(nc_datetime_index)
-        logger.info(nc_datetime_index.tz_localize(None))
-        logger.info(nc_datetime_index.tz_localize(None) - local_reference_time)
 
         xds_lonlat = xds_lonlat.assign_coords(
             time=(nc_datetime_index.tz_localize(None) - local_reference_time) / 3600000000000
         )
         xds_lonlat.to_netcdf(output_file)
-        #xds_lonlat.to_netcdf(r"D:\FLASH\01_Modelling\Tvlle_Combined\forcing_test_tobias\forcing_rainfall_test.nc")
 
     def read_rainfall_timeseries_uuids(self):
         rainfall_timeseries = pd.read_csv(self.settings.precipitation_uuid_file)
