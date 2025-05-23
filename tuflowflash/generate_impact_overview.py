@@ -1,21 +1,21 @@
 import os
 from pathlib import Path
+import datetime
 import pandas as pd
 from fpdf import FPDF
 import matplotlib.pyplot as plt
 import numpy as np
 import geopandas as gpd
 from matplotlib.colors import LinearSegmentedColormap
-import contextily as cx
 from matplotlib.lines import Line2D
 import matplotlib.patches as mpatches
 import rasterio
 from PIL import Image
-import random
 import warnings
 from shapely.geometry import box
 from fpdf.enums import XPos, YPos
 from fpdf.fonts import FontFace
+from pypdf import PdfWriter
 
 warnings.filterwarnings("ignore")
 
@@ -80,14 +80,13 @@ def create_overall_impact_summary_table(
         ],
         axis=0,
     )
-    total_impact_assessment = total_impact_assessment.loc[
-        total_impact_assessment["vulnerability_class"] > 1.0
-    ]
-
+    total_impact_assessment["Impacted"] = total_impact_assessment.apply(lambda row: 1 if row.vulnerability_class > 1 else 0, axis=1)
+    total_impact_assessment["Total"] = 1
+    
     total_impact_assessment_grouped = total_impact_assessment.groupby(
         ["Feature", "Type"]
-    )[["vulnerability_class"]].count()
-
+    )[["Impacted", "Total"]].sum()
+    
     return total_impact_assessment_grouped
 
 
@@ -428,8 +427,8 @@ class PdfFile(FPDF):
             x=3,
             y=10,
             alignment="L",
-            text="Townsville Impact Overview",
-            fontsize=18,
+            text="Townsville TFWS - Flood Impact Overview",
+            fontsize=16,
             bold=False,
             color=(15, 24, 96),
         )
@@ -876,7 +875,8 @@ class PdfFile(FPDF):
 
         self.set_font(self.font_name, size=6)
         
-        table_data = table_data.rename(columns={"vulnerability_class": "Total Impacted"})
+        table_data["Impacted / Total"] = table_data.apply(lambda row: f"{row['Impacted']} / {row['Total']}", axis=1)
+        table_data = table_data.drop(["Impacted", "Total"], axis=1)
         table_data = table_data.sort_index(level=0)
         features = list(table_data.index.get_level_values(0))
         
@@ -2064,7 +2064,7 @@ class CreateReport:
     ):
         self.impact_vector_path = impact_vector_path
         self.layer_names = layer_names
-
+        self.report_creation_date = datetime.datetime.now()
         # zones file
         self.zone_file = zone_file
         self.zone_file_name_col = zone_file_name_col
@@ -2233,7 +2233,7 @@ class CreateReport:
             rf"d:\Royal HaskoningDHV\P-PA3396-Townsville-FLASH - WIP\python\impact_module_update\background_map_{map_region}.png"
         ) as src:
             bounds = list(src.bounds)
-
+        
         with Image.open(
             rf"d:\Royal HaskoningDHV\P-PA3396-Townsville-FLASH - WIP\python\impact_module_update\background_map_{map_region}.png"
         ) as background_map:
@@ -2243,10 +2243,16 @@ class CreateReport:
                 aspect="equal",
             )
 
+        # plt.savefig(
+        #     TEMP_MAP_SAVELOC_FOLDER / f"temp_{map_region}.svg",
+        #     bbox_inches="tight",
+        #     dpi=500,
+        # )
+        
         plt.savefig(
             TEMP_MAP_SAVELOC_FOLDER / f"temp_{map_region}.png",
             bbox_inches="tight",
-            dpi=600,
+            dpi=300,
         )
 
         # add map to pdf
@@ -2256,6 +2262,7 @@ class CreateReport:
             profile = src.profile
 
         desired_width = 200
+        
         wh_ratio = profile["height"] / profile["width"]
 
         self.pdf.image(
@@ -2278,6 +2285,22 @@ class CreateReport:
         summary_table_link = self.pdf.add_link()
         self.pdf.contents["| Impact Summary |"] = summary_table_link
          
+    def create_metadata_table(self, y_start):
+        self.pdf.add_text(x=5, y=y_start, alignment="L", text="Metadata", bold=True, fontsize=12)
+        self.pdf.add_text(x=5, y=y_start+5, alignment="L", text=f"Report creation date:           {self.report_creation_date.strftime('%Y-%m-%d %H:%M')}", bold=False, fontsize=8)
+        
+        self.pdf.add_text(x=5, y=y_start+20, alignment="L", text=f"Learn more", bold=True, fontsize=12)
+        
+        self.pdf.set_fill_color(GREEN_RGB)
+        
+        self.pdf.link(x=5, y=y_start+35, w=40, h=10, link=r"https://townsville.lizard.net/floodsmart/table-1")
+        self.pdf.rect(x=5, y=y_start+35, w=40, h=10, style="FD")
+        self.pdf.add_text(x=8.5, y=y_start+30, alignment="L", text="Visit Lizard Dashboard", bold=True, fontsize=8)
+        
+        self.pdf.link(x=55, y=y_start+35, w=40, h=10, link=r"http://www.bom.gov.au/cgi-bin/wrap_fwo.pl?IDQ60290.html")
+        self.pdf.rect(x=55, y=y_start+35, w=40, h=10, style="FD")
+        self.pdf.add_text(x=67, y=y_start+30, alignment="L", text="Visit BOM", bold=True, fontsize=8)
+        
     def add_zone_breakdown_table(self):
         table = create_zone_breakdown_table(
             impact_vector_path=self.impact_vector_path,
@@ -2489,14 +2512,22 @@ class CreateReport:
             y = self.pdf.y + 5
 
     def save_report(self):
-        self.pdf.output(
-            os.path.join(
-                r"d:\Royal HaskoningDHV\P-PA3396-Townsville-FLASH - WIP\python\impact_module_update\output\factsheet.pdf"
-            ),
-            "F",
-        )
+        output_path = os.path.join(r"d:\Royal HaskoningDHV\P-PA3396-Townsville-FLASH - WIP\python\impact_module_update\output\factsheet_big.pdf")
+        output_path_compressed = os.path.join(r"d:\Royal HaskoningDHV\P-PA3396-Townsville-FLASH - WIP\python\impact_module_update\output\factsheet.pdf")
+        
+        self.pdf.output(output_path, "F")
+        
+        writer = PdfWriter(clone_from=output_path)
+        for page in writer.pages:
+            for img in page.images:
+                img.replace(img.image, quality=50)
+            
+        page.compress_content_streams(level=9)
+            
+        with open(output_path_compressed, "wb") as f:
+            writer.write(f)
 
-
+    
 if __name__ == "__main__":
     cm = CreateReport(
         zone_file_name_col="Name",
@@ -2512,8 +2543,11 @@ if __name__ == "__main__":
         fontsize=12,
         bold=True,
     )
+    
     cm.create_overall_impact_summary(y_start=65)
-
+    
+    cm.create_metadata_table(y_start=120)
+    
     cm.pdf.add_page()
 
     cm.create_map(map_region="magnetic_island", y_top=50, add_link=True)
@@ -2633,4 +2667,6 @@ if __name__ == "__main__":
     cm.pdf.add_page()
 
     cm.pdf.add_content_line()
+    
+    cm.pdf.set_compression(compress=True)
     cm.save_report()

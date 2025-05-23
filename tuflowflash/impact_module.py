@@ -5,9 +5,20 @@ from rasterio import features
 import numpy as np
 import pandas as pd
 
-BUFFER_SIZE = 5
-CAP_STYLE = 2
 CLASSES = {"low": 1, "medium": 2, "high": 3, "very high": 4}
+
+BUFFER_STYLE = {
+    "Buildings": "square",
+    "Road Closure Points": "round",
+    "Evacuation Centre": "round",
+    "Council Assets": "square",
+}
+BUFFER_SIZE = {
+    "Buildings": 10,
+    "Road Closure Points": 7,
+    "Evacuation Centre": 30,
+    "Council Assets": 20,
+}
 
 
 def save_array_to_tiff(outfile, array, profile):
@@ -23,7 +34,7 @@ def save_array_to_tiff(outfile, array, profile):
 
 
 def rasterize_vector_column(
-    geodataframe, value_column, outfile, transform, depth_raster
+    geodataframe, value_column, outfile, transform, depth_raster, layer_name
 ):
     """Process vector_file to raster
 
@@ -39,38 +50,21 @@ def rasterize_vector_column(
     with rasterio.open(depth_raster) as src:
         shape = src.shape
 
-    ones_list = list(geodataframe[geodataframe[value_column] == 1]["geometry"])
-    if ones_list:
-        features.rasterize(
-            ones_list,
-            out_shape=shape,
-            out=outfile,
-            transform=transform,
-            all_touched=False,
-            default_value=1,
-        )
+    geodataframe.geometry = geodataframe.buffer(cap_style=BUFFER_STYLE.get(layer_name), distance=BUFFER_SIZE.get(layer_name))
 
-    twos_list = list(geodataframe[geodataframe[value_column] == 2]["geometry"])
-    if twos_list:
-        features.rasterize(
-            twos_list,
-            out_shape=shape,
-            out=outfile,
-            transform=transform,
-            all_touched=False,
-            default_value=2,
-        )
+    shapes = (
+        (geom, value)
+        for geom, value in zip(geodataframe["geometry"], geodataframe[value_column])
+    )
 
-    threes_list = list(geodataframe[geodataframe[value_column] == 3]["geometry"])
-    if threes_list:
-        features.rasterize(
-            threes_list,
-            out_shape=shape,
-            out=outfile,
-            transform=transform,
-            all_touched=False,
-            default_value=3,
-        )
+    features.rasterize(
+        shapes,
+        out_shape=shape,
+        out=outfile,
+        transform=transform,
+        all_touched=False,
+        default_value=1,
+    )
 
 
 class impactModule:
@@ -127,9 +121,11 @@ class impactModule:
         shapes["volume"] = list(map(lambda x: x["sum"], zonal_statistics))
 
         shapes["max_depth"] = shapes.apply(
-            lambda row: row["max_wl"] - row[shapes_reference_level_colname]
-            if not pd.isnull(row["max_wl"])
-            else fill_value,
+            lambda row: (
+                row["max_wl"] - row[shapes_reference_level_colname]
+                if not pd.isnull(row["max_wl"])
+                else fill_value
+            ),
             axis=1,
         )
         return shapes
@@ -200,7 +196,7 @@ class impactModule:
         self,
         road_closure_pt_geopackage,
         waterlevel_raster,
-        buffer_size=10,
+        buffer_size=15,
         reference_level_column_name="Level",
     ):
         # set fill value to -9999, which means that when no waterlevel is found, the risk is assessed at < -0.3 m WD instead of 0, which would classify this as a medium risk
@@ -237,7 +233,7 @@ class impactModule:
             buffer_size=buffer_size,
             fill_value=-9999,
         )
-        
+
         vulnerable_evacuation_centres_results = self.translate_to_classes(
             evacuation_centres_sampled, -0.3, 0, 0.15
         )
@@ -273,22 +269,25 @@ class impactModule:
         )
         return output_filename
 
-    def create_impact_raster(self, vector_list, depth_raster):
+    def create_impact_raster(self, layer_dict, depth_raster):
         with rasterio.open(depth_raster) as src:
             profile = src.profile
             transform = profile["transform"]
         impact_data = (
             np.empty((profile["height"], profile["width"])) + profile["nodata"]
         ).astype(dtype=np.float32)
-        for vector_file in vector_list:
-            geodataframe = gpd.read_file(vector_file)
+
+        for _, (layer_name, layer_location) in enumerate(layer_dict.items()):
+            geodataframe = gpd.read_file(layer_location, layer_name=layer_name)
             rasterize_vector_column(
                 geodataframe,
                 "vulnerability_class",
                 impact_data,
                 transform,
                 depth_raster,
+                layer_name,
             )
+
         save_array_to_tiff(
             depth_raster.replace(".tif", "_vulnerability.tif"), impact_data, profile
         )
