@@ -4,6 +4,8 @@ import rasterio
 from rasterio import features
 import numpy as np
 import pandas as pd
+from rasterio.crs import CRS
+from shapely.geometry import box
 
 CLASSES = {"low": 1, "medium": 2, "high": 3, "very high": 4}
 
@@ -186,7 +188,12 @@ class impactModule:
             buildings_sampled, 0, 0.25, 1
         )
 
-        output_filename = waterlevel_raster.replace(".tif", "_buildings.gpkg")
+        with rasterio.open(waterlevel_raster, "r") as src:
+            bounds =box(*tuple(src.bounds))
+            
+        vulnerable_buildings_results = vulnerable_buildings_results.clip(bounds)
+        print(waterlevel_raster, type(waterlevel_raster))
+        output_filename = waterlevel_raster.as_posix().replace(".tif", "_buildings.gpkg")
         vulnerable_buildings_results.to_file(
             str(output_filename), layer="vulnerable_buildings"
         )
@@ -212,7 +219,12 @@ class impactModule:
             road_closure_points_sampled, -0.3, 0, 0.15
         )
 
-        output_filename = waterlevel_raster.replace(".tif", "_road_closure_points.gpkg")
+        with rasterio.open(waterlevel_raster, "r") as src:
+            bounds =box(*tuple(src.bounds))
+            
+        vulnerable_road_closure_points_results = vulnerable_road_closure_points_results.clip(bounds)
+
+        output_filename = waterlevel_raster.as_posix().replace(".tif", "_road_closure_points.gpkg")
         vulnerable_road_closure_points_results.to_file(
             str(output_filename), layer="vulnerable_road_closure_points"
         )
@@ -238,7 +250,12 @@ class impactModule:
             evacuation_centres_sampled, -0.3, 0, 0.15
         )
 
-        output_filename = waterlevel_raster.replace(".tif", "_evacuation_centres.gpkg")
+        with rasterio.open(waterlevel_raster, "r") as src:
+            bounds =box(*tuple(src.bounds))
+            
+        vulnerable_evacuation_centres_results = vulnerable_evacuation_centres_results.clip(bounds)
+
+        output_filename = waterlevel_raster.as_posix().replace(".tif", "_evacuation_centres.gpkg")
         vulnerable_evacuation_centres_results.to_file(
             str(output_filename), layer="vulnerable_evacuation_centres"
         )
@@ -263,13 +280,18 @@ class impactModule:
             council_assets_sampled, -0.3, 0, 0.15
         )
 
-        output_filename = waterlevel_raster.replace(".tif", "_council_assets.gpkg")
+        with rasterio.open(waterlevel_raster, "r") as src:
+            bounds =box(*tuple(src.bounds))
+            
+        vulnerable_council_assets_results = vulnerable_council_assets_results.clip(bounds)
+
+        output_filename = waterlevel_raster.as_posix().replace(".tif", "_council_assets.gpkg")
         vulnerable_council_assets_results.to_file(
             str(output_filename), layer="vulnerable_council_assets"
         )
         return output_filename
 
-    def create_impact_raster(self, layer_dict, depth_raster):
+    def create_impact_raster(self, layer_dict, depth_raster, output_path):
         with rasterio.open(depth_raster) as src:
             profile = src.profile
             transform = profile["transform"]
@@ -288,10 +310,10 @@ class impactModule:
                 layer_name,
             )
 
-        save_array_to_tiff(
-            depth_raster.replace(".tif", "_vulnerability.tif"), impact_data, profile
+        profile["crs"] = CRS.from_string("EPSG:28355")
+        save_array_to_tiff(output_path, impact_data, profile
         )
-        return depth_raster.replace(".tif", "_vulnerability.tif")
+        return output_path
 
     def create_impact_vector(self, layer_dict, impact_vector_output_path):
         for i, (layer_name, layer_location) in enumerate(layer_dict.items()):

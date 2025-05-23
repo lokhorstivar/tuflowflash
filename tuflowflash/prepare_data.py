@@ -2,7 +2,7 @@ from pyproj import Proj
 from pyproj import Transformer
 from shapely.geometry import mapping
 from typing import List
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 import cftime
@@ -36,6 +36,7 @@ class MissingFileException(Exception):
 class prepareData:
     def __init__(self, settings):
         self.settings = settings
+        print("init prepareData")
 
     def get_historical_precipitation(self):
         logger.info("Started gathering historical precipitation data")
@@ -47,9 +48,8 @@ class prepareData:
         logger.info("gathered lizard rainfall timeseries")
 
         # preprocess rain data
-        local = pytz.timezone("Australia/Sydney")
-        local_reference_time = local.localize(self.settings.reference_time, is_dst=None)
-        utc_reference_time = local_reference_time.astimezone(pytz.utc)
+        local_reference_time = self.settings.reference_time.astimezone()
+        utc_reference_time = local_reference_time.astimezone(timezone.utc)
 
         rain_df = self.process_rainfall_timeseries_for_tuflow(
             rain_df, utc_reference_time
@@ -62,11 +62,11 @@ class prepareData:
         sourcePath = Path(r"temp/radar_rain.nc")
         self.download_bom_radar_data(self.settings.bom_nowcast_file)
 
-        local = pytz.timezone("Australia/Sydney")
-        local_start = local.localize(self.settings.start_time, is_dst=None)
-        utc_start = local_start.astimezone(pytz.utc)
-        local_end = local.localize(self.settings.end_time, is_dst=None)
-        utc_end = local_end.astimezone(pytz.utc)
+        local_start = self.settings.start_time.astimezone()
+        utc_start = local_start.astimezone(timezone.utc)
+        
+        local_end = self.settings.end_time.astimezone()
+        utc_end = local_end.astimezone(timezone.utc)
 
         self.write_nowcast_netcdf_with_time_indexes(
             sourcePath,
@@ -81,21 +81,30 @@ class prepareData:
         sourcePath = Path(r"temp/forecast_rain.nc")
         self.download_bom_forecast_data(self.settings.bom_forecast_file)
 
+        local_start = self.settings.start_time.astimezone()
+        local_reference = self.settings.reference_time.astimezone()
+        local_end = self.settings.end_time.astimezone()
+        
+        utc_start = local_start.astimezone(timezone.utc)
+        utc_reference = local_reference.astimezone(timezone.utc)
+        utc_end = local_end.astimezone(timezone.utc)
+   
         self.write_forecast_netcdf_with_time_indexes(
-            sourcePath,
-            self.settings.netcdf_forecast_rainfall_file,
-            self.settings.forecast_clipshape,
-            self.settings.start_time,
-            self.settings.end_time,
-            self.settings.reference_time,
+            sourcePath=sourcePath,
+            output_file=self.settings.netcdf_forecast_rainfall_file,
+            clipshape=self.settings.forecast_clipshape,
+            start_time=utc_start,
+            end_time=utc_end,
+            reference_time=utc_reference,
         )
+
         logger.info("succesfully prepared netcdf radar rainfall")
 
     def convert_csv_file_to_bc_file(self):
         csv_df = pd.read_csv(self.settings.boundary_csv_input_file, delimiter=",")
         csv_df["Time (h)"] = pd.to_datetime(csv_df["datetime"], dayfirst=True)
         csv_df.set_index("Time (h)", inplace=True)
-        csv_df.index = (csv_df.index - self.settings.reference_time) / np.timedelta64(
+        csv_df.index = (csv_df.index - self.settings.start_time) / np.timedelta64(
             1, "h"
         )
         csv_df.to_csv(self.settings.boundary_csv_tuflow_file)
@@ -115,9 +124,16 @@ class prepareData:
         xds_lonlat[:, :, :] = np.where(
             xds_lonlat == xds_lonlat.attrs["_FillValue"], 0, xds_lonlat
         )
+     
         xds_lonlat = xds_lonlat.sel(time=slice(start_time, end_time))
+
+        nc_datetime_index = xds_lonlat.indexes["time"].to_datetimeindex().tz_localize("UTC").tz_convert("Australia/Sydney")
+        
+        # convert to local timezone
+        local_reference_time = pd.to_datetime(reference_time).tz_convert("Australia/Sydney").tz_localize(None)
+
         xds_lonlat = xds_lonlat.assign_coords(
-            time=(xds_lonlat["time"] - reference_time) / 3600000000000
+            time=(nc_datetime_index.tz_localize(None) - local_reference_time) / 3600000000000
         )
         xds_lonlat.to_netcdf(output_file)
 
@@ -135,12 +151,19 @@ class prepareData:
 
         timeseries_df_list = []
         gauge_names_list = []
+        
+        # local_timezone = timestamp_utc = timestamp.astimezone(timezone.utc)
+        # local = pytz.timezone("Australia/Sydney")
 
-        local = pytz.timezone("Australia/Sydney")
-        local_start = local.localize(self.settings.start_time, is_dst=None)
-        utc_start = local_start.astimezone(pytz.utc)
-        local_end = local.localize(self.settings.end_time, is_dst=None)
-        utc_end = local_end.astimezone(pytz.utc)
+        #local = pytz.timezone("Australia/Sydney")
+        #local_start = local.localize(self.settings.start_time, is_dst=None)
+        local_start = self.settings.start_time.astimezone()
+        utc_start = local_start.astimezone(timezone.utc)
+
+    
+        #local_end = local.localize(self.settings.end_time, is_dst=None)
+        local_end = self.settings.end_time.astimezone()
+        utc_end = local_end.astimezone(timezone.utc)
 
         params = {
             "time__gte": utc_start.isoformat(),
@@ -420,13 +443,30 @@ class prepareData:
             )
 
     def select_hindcast_netcdf_files(self):
-        local = pytz.timezone("Australia/Sydney")
-        local_start = local.localize(self.settings.start_time, is_dst=None)
-        utc_start = local_start.astimezone(pytz.utc)
-        local_end = local.localize(self.settings.end_time, is_dst=None)
-        utc_end = local_end.astimezone(pytz.utc)
-        local_reference = local.localize(self.settings.reference_time, is_dst=None)
-        utc_reference = local_reference.astimezone(pytz.utc)
+        #local = pytz.timezone("Australia/Sydney")
+        # local_start = local.localize(self.settings.start_time, is_dst=None)
+        # utc_start = local_start.astimezone(pytz.utc)
+        # local_end = local.localize(self.settings.end_time, is_dst=None)
+        # utc_end = local_end.astimezone(pytz.utc)
+
+        local_start = self.settings.start_time.astimezone()
+        utc_start = local_start.astimezone(timezone.utc)
+
+        local_end = self.settings.end_time.astimezone()
+        utc_end = local_end.astimezone(timezone.utc)
+
+        local_reference = self.settings.reference_time.astimezone()
+        utc_reference = local_reference.astimezone(timezone.utc)
+
+        logger.info("select_hindcast_netcdf_files: local_start: %s", local_start)
+        logger.info("select_hindcast_netcdf_files: utc_start: %s", utc_start)
+
+        logger.info("select_hindcast_netcdf_files: local_end: %s", local_end)
+        logger.info("select_hindcast_netcdf_files: utc_end: %s", utc_end)
+
+        logger.info("select_hindcast_netcdf_files: local_reference: %s", local_reference)
+        logger.info("select_hindcast_netcdf_files: utc_reference: %s", utc_reference)
+
         for f in glob.glob(str(self.settings.historic_rain_folder) + "/*00.nc"):
             f_timestamp = pytz.utc.localize(
                 datetime.strptime(f.split(".")[-2], "%Y%m%d%H%M%S")
@@ -506,10 +546,8 @@ class prepareData:
         df.to_csv(self.settings.rain_grids_csv)
 
     def download_soil_moisture(self):
-        # Create timezone objecty of Sydney Australia
-        aus_tz = pytz.timezone("Australia/Sydney")
-        # Find time right now
-        time_now = datetime.now(aus_tz)
+        # Find time right now in pc timezone
+        time_now = datetime.now().astimezone()
 
         # Generate the name of the .nc file to download (for example sm_pct_2023.nc). One nc file exists for each year and the file is updated daily
         nc_soil_moisture_filename = "sm_pct_" + str(time_now.year) + ".nc"

@@ -60,7 +60,7 @@ def get_parser():
         default="settings.ini",
         help=".ini settings file",
     )
-
+    
     # OPTIONAL ARGUMENTS
     parser.add_argument(
         "--reference_time",
@@ -83,15 +83,17 @@ def get_parser():
 def main(rainfall_mp_factor=1, settings=None):
     """Call command with args from parser."""
     # read settings
+    os.environ["PROJ_NETWORK"] = "OFF"
     options = get_parser().parse_args()
     if options.verbose:
-        log_level = logging.DEBUG
+        log_level = logging.INFO
     else:
         log_level = logging.INFO
 
     logging.basicConfig(
         level=log_level, format="%(asctime)s %(levelname)s: %(message)s"
     )
+    
     if settings is None:
         settings = read_settings.FlashSettings(
             options.settings_file, options.reference_time
@@ -99,6 +101,8 @@ def main(rainfall_mp_factor=1, settings=None):
 
     try:
         # Historical precipitation
+        logger.info(f"{options.reference_time}")
+
         data_prepper = prepare_data.prepareData(settings)
         if settings.get_historical_precipitation:
             data_prepper.get_historical_precipitation()
@@ -111,13 +115,13 @@ def main(rainfall_mp_factor=1, settings=None):
         else:
             logger.info("not gathering bom forecast rainfall data, skipping..")
 
+        logger.info("past edits")
         if settings.get_bom_nowcast:
             data_prepper.get_precipitation_nowcast()
         else:
             logger.info("not gathering bom nowcast rainfall data, skipping..")
 
-        if (
-            settings.get_bom_forecast
+        if (settings.get_bom_forecast
             or settings.get_bom_nowcast
             or settings.use_bom_historical
         ):
@@ -145,14 +149,19 @@ def main(rainfall_mp_factor=1, settings=None):
 
         if settings.convert_csv_to_bc:
             data_prepper.convert_csv_file_to_bc_file()
+
             if settings.custom_residual_tide:
                 subprocess.run(["python", settings.custom_residual_script])
+            
         else:
             logger.info("not converting csv to boundary conditions, skipping..")
+
+        logger.info("run simulation..")
 
         # run simulation
         if settings.run_simulation:
             tuflow_simulation = run_tuflow.TuflowSimulation(settings)
+            logger.info("Starting...")
             tuflow_simulation.run()
         else:
             logger.info("Not running Tuflow simulation, skipping..")
@@ -163,8 +172,9 @@ def main(rainfall_mp_factor=1, settings=None):
             post_processer.track_historic_forecasts_in_lizard()
 
         if settings.post_to_lizard:
+            logger.info("Posting to lizard")
             post_processer.process_tuflow()
-            # post_processer.upload_bom_precipitation()
+            # post_processer.upload_bom_precipitation() # LEGACY, OBSOLETE
         else:
             logger.info("Not uploading files to Lizard, skipping..")
 
@@ -181,14 +191,14 @@ def main(rainfall_mp_factor=1, settings=None):
         return 0
 
     except Exception as e:
-        send_email(
-            settings.email_subject,
-            settings.email_text_file,
-            settings.email_adress,
-            settings.email_password,
-            settings.email_attendees,
-            e,
-        )
+        # send_email(
+        #     settings.email_subject,
+        #     settings.email_text_file,
+        #     settings.email_adress,
+        #     settings.email_password,
+        #     settings.email_attendees,
+        #     e,
+        # )
         if options.verbose:
             logger.exception(e)
         else:

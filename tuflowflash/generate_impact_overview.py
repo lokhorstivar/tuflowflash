@@ -16,13 +16,14 @@ from shapely.geometry import box
 from fpdf.enums import XPos, YPos
 from fpdf.fonts import FontFace
 from pypdf import PdfWriter
-
+import pyproj
+pyproj.network.set_network_enabled(False)
 warnings.filterwarnings("ignore")
 
 
-MAP_EXTENT = Path(__file__).parent / "styling" / "map_extent.gpkg"
+MAP_EXTENT = Path(r"D:\FLASH\01_Modelling\impact_module\input\factsheet_inputs") / "styling" / "map_extent.gpkg"
 
-TEMP_MAP_SAVELOC_FOLDER = Path(__file__).parent / "styling"
+TEMP_MAP_SAVELOC_FOLDER = Path(r"D:\FLASH\01_Modelling\impact_module\input\factsheet_inputs") / "styling"
 
 GREEN_RGB = (218, 242, 208)
 BLUE_RGB = (159, 214, 239)
@@ -58,7 +59,7 @@ def create_overall_impact_summary_table(
     )
     impact_assessment_statistics_road_closure_points["Type"] = "Road Flooding Points"
     impact_assessment_statistics_road_closure_points["Feature"] = "Road Flooding Points"
-
+    print(impact_assessment_statistics_evacuation_centre.head().columns)
     impact_assessment_statistics_evacuation_centre = (
         impact_assessment_statistics_evacuation_centre[["Type", "vulnerability_class"]]
     )
@@ -434,7 +435,7 @@ class PdfFile(FPDF):
         )
         self.set_xy(x=175, y=0)
         self.image(
-            r"d:\Royal HaskoningDHV\P-PA3396-Townsville-FLASH - WIP\python\impact_module_update\tville_logo.png",
+            r"D:\FLASH\01_Modelling\impact_module\input\factsheet_inputs\background_maps\tville_logo.png",
             link="",
             type="png",
             w=225 / 7,
@@ -2054,6 +2055,7 @@ class CreateReport:
         self,
         impact_vector_path,
         zone_file,
+        background_map_folder,
         zone_file_name_col="name",
         layer_names=[
             "Buildings",
@@ -2065,6 +2067,7 @@ class CreateReport:
         self.impact_vector_path = impact_vector_path
         self.layer_names = layer_names
         self.report_creation_date = datetime.datetime.now()
+        self.background_map_folder = background_map_folder
         # zones file
         self.zone_file = zone_file
         self.zone_file_name_col = zone_file_name_col
@@ -2076,9 +2079,8 @@ class CreateReport:
     def create_map(
         self, map_region, y_top=45, add_link=False, background_map_crs="epsg:3857"
     ):
-
         with rasterio.open(
-            rf"d:\Royal HaskoningDHV\P-PA3396-Townsville-FLASH - WIP\python\impact_module_update\background_map_{map_region}.png"
+            Path(self.background_map_folder) / f"background_map_{map_region}.png"
         ) as src:
             bounds_geom = box(*src.bounds)
             background_map_profile = src.profile
@@ -2104,11 +2106,12 @@ class CreateReport:
 
         exclude_non_impacted = ["Buildings", "Road Closure Points"]
 
-        for layer in self.layer_names:
+        for layer in self.layer_names:  
             shape = gpd.read_file(self.impact_vector_path, layer=layer)
             shape = shape.to_crs(crs=background_map_crs)
-            shape = shape.loc[shape.within(bounds.geometry.iloc[0])]
 
+            shape = shape.loc[shape.within(bounds.geometry.iloc[0])]
+            
             if layer in exclude_non_impacted:
                 cmap = LinearSegmentedColormap.from_list(
                     "townsville_impact",
@@ -2230,12 +2233,12 @@ class CreateReport:
         ax.add_artist(legend_delineation)
 
         with rasterio.open(
-            rf"d:\Royal HaskoningDHV\P-PA3396-Townsville-FLASH - WIP\python\impact_module_update\background_map_{map_region}.png"
+            Path(self.background_map_folder) / f"background_map_{map_region}.png"
         ) as src:
             bounds = list(src.bounds)
         
         with Image.open(
-            rf"d:\Royal HaskoningDHV\P-PA3396-Townsville-FLASH - WIP\python\impact_module_update\background_map_{map_region}.png"
+            Path(self.background_map_folder) / f"background_map_{map_region}.png"
         ) as background_map:
             ax.imshow(
                 background_map,
@@ -2243,12 +2246,6 @@ class CreateReport:
                 aspect="equal",
             )
 
-        # plt.savefig(
-        #     TEMP_MAP_SAVELOC_FOLDER / f"temp_{map_region}.svg",
-        #     bbox_inches="tight",
-        #     dpi=500,
-        # )
-        
         plt.savefig(
             TEMP_MAP_SAVELOC_FOLDER / f"temp_{map_region}.png",
             bbox_inches="tight",
@@ -2285,21 +2282,41 @@ class CreateReport:
         summary_table_link = self.pdf.add_link()
         self.pdf.contents["| Impact Summary |"] = summary_table_link
          
-    def create_metadata_table(self, y_start):
-        self.pdf.add_text(x=5, y=y_start, alignment="L", text="Metadata", bold=True, fontsize=12)
+    def create_metadata_table(self, y_start, result_creation_times):
+        self.pdf.add_text(x=5, y=y_start, alignment="L", text="System Status", bold=True, fontsize=12)
         self.pdf.add_text(x=5, y=y_start+5, alignment="L", text=f"Report creation date:           {self.report_creation_date.strftime('%Y-%m-%d %H:%M')}", bold=False, fontsize=8)
         
-        self.pdf.add_text(x=5, y=y_start+20, alignment="L", text=f"Learn more", bold=True, fontsize=12)
+        name_to_model_conversion = {"balgal": "Balgal Bay", "magnetic": "Magnetic Island", "townsville": "Townsville"}
+
+        for i, (name, time) in enumerate(result_creation_times.items()):
+            offset = 10 + i * 5
+
+            if not pd.isnull(time):
+                now = datetime.datetime.now()
+                if (now - time).total_seconds() > 12 * 3600:
+                    self.pdf.add_text(x=5, y=y_start+offset, alignment="L", text=f"{name_to_model_conversion.get(name)} latest result: {time.strftime('%Y-%m-%d %H:%M')}", bold=False, fontsize=8, color=(139, 0, 0))
+                else:
+                    self.pdf.add_text(x=5, y=y_start+offset, alignment="L", text=f"{name_to_model_conversion.get(name)} latest result: {time.strftime('%Y-%m-%d %H:%M')}", bold=False, fontsize=8, color=(0, 100, 0))
+            else:
+                self.pdf.add_text(x=5, y=y_start+offset, alignment="L", text=f"{name_to_model_conversion.get(name)} latest result: NO RESULTS AVAILABLE", bold=False, fontsize=8, color=(255, 0, 0))
+
+
+
+        self.pdf.add_text(x=5, y=self.pdf.y + 5, alignment="L", text=f"Rain multiplication factor: {0}", bold=False, fontsize=8, color=(255, 0, 0))
+
+        self.pdf.add_text(x=5, y=self.pdf.y + 15, alignment="L", text=f"Learn more", bold=True, fontsize=12)
         
         self.pdf.set_fill_color(GREEN_RGB)
         
-        self.pdf.link(x=5, y=y_start+35, w=40, h=10, link=r"https://townsville.lizard.net/floodsmart/table-1")
-        self.pdf.rect(x=5, y=y_start+35, w=40, h=10, style="FD")
-        self.pdf.add_text(x=8.5, y=y_start+30, alignment="L", text="Visit Lizard Dashboard", bold=True, fontsize=8)
+        current_y = self.pdf.y
+
+        self.pdf.link(x=5, y=current_y + 15, w=40, h=10, link=r"https://townsville.lizard.net/floodsmart/table-1")
+        self.pdf.rect(x=5, y=current_y + 15, w=40, h=10, style="FD")
+        self.pdf.add_text(x=8.5, y=current_y + 10, alignment="L", text="Visit Lizard Dashboard", bold=True, fontsize=8)
         
-        self.pdf.link(x=55, y=y_start+35, w=40, h=10, link=r"http://www.bom.gov.au/cgi-bin/wrap_fwo.pl?IDQ60290.html")
-        self.pdf.rect(x=55, y=y_start+35, w=40, h=10, style="FD")
-        self.pdf.add_text(x=67, y=y_start+30, alignment="L", text="Visit BOM", bold=True, fontsize=8)
+        self.pdf.link(x=55, y=current_y + 15, w=40, h=10, link=r"http://www.bom.gov.au/cgi-bin/wrap_fwo.pl?IDQ60290.html")
+        self.pdf.rect(x=55, y=current_y + 15, w=40, h=10, style="FD")
+        self.pdf.add_text(x=67, y=current_y + 10, alignment="L", text="Visit BOM", bold=True, fontsize=8)
         
     def add_zone_breakdown_table(self):
         table = create_zone_breakdown_table(
@@ -2512,8 +2529,8 @@ class CreateReport:
             y = self.pdf.y + 5
 
     def save_report(self):
-        output_path = os.path.join(r"d:\Royal HaskoningDHV\P-PA3396-Townsville-FLASH - WIP\python\impact_module_update\output\factsheet_big.pdf")
-        output_path_compressed = os.path.join(r"d:\Royal HaskoningDHV\P-PA3396-Townsville-FLASH - WIP\python\impact_module_update\output\factsheet.pdf")
+        output_path = os.path.join(r"D:\FLASH\01_Modelling\impact_module\output\factsheet_big.pdf")
+        output_path_compressed = os.path.join(r"D:\FLASH\01_Modelling\impact_module\output\factsheet.pdf")
         
         self.pdf.output(output_path, "F")
         
