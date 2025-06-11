@@ -4,6 +4,7 @@ from shapely.geometry import mapping
 from typing import List
 from datetime import datetime, timedelta
 from pathlib import Path
+from osgeo import gdal
 
 import cftime
 import ftplib
@@ -20,6 +21,7 @@ import requests
 import rioxarray
 import shutil
 import time
+
 
 
 logger = logging.getLogger(__name__)
@@ -505,67 +507,108 @@ class prepareData:
         df.set_index("Time (hrs)", inplace=True)
         df.to_csv(self.settings.rain_grids_csv)
 
-    def download_soil_moisture(self):
+
+    def get_soil_moisture(self):
         # Create timezone objecty of Sydney Australia
         aus_tz = pytz.timezone("Australia/Sydney")
         # Find time right now
         time_now = datetime.now(aus_tz)
 
+        # # soil_moisture_pct_filename = "sm_pct_2025_EPSG4326.tif"
+        # soil_moisture_pct_filename = "sm_pct_2025_latest.tif"
+        # soil_moisture_pct_file = (soil_moisture_folder / soil_moisture_pct_filename)
+
         # Generate the name of the .nc file to download (for example sm_pct_2023.nc). One nc file exists for each year and the file is updated daily
-        nc_soil_moisture_filename = "sm_pct_" + str(time_now.year) + ".nc"
-        nc_soil_moisture_file = (
-            self.settings.soil_moisture_folder / nc_soil_moisture_filename
-        )
+        soil_moisture_nc_filename = "sm_pct_" + str(time_now.year) + ".nc"
+        soil_moisture_nc_file = (self.settings.soil_moisture_folder / soil_moisture_nc_filename)
+
+        # Initialise soil moisture pct tif in EPSG4326 
+        soil_moisture_pct_tif_filename = "sm_pct_" + str(time_now.year) + "_EPSG4326.tif"
+        soil_moisture_pct_tif_file =  (self.settings.soil_moisture_folder / soil_moisture_pct_tif_filename)
+        # Initialise soil moisture pct tif in EPSG28355 
+        soil_moisture_pct_reprojected_tif_filename = "sm_pct_" + str(time_now.year) + "_EPSG28355.tif"
+        soil_moisture_pct_reprojected_tif_file =  (self.settings.soil_moisture_folder / soil_moisture_pct_reprojected_tif_filename)
+        # Initialise soil moisture pct tif in EPSG28355 
+        # soil_moisture_depth_tif_filename = "sm_pct_EPSG28355_depth.tif"
+        soil_moisture_depth_tif_file =  (self.settings.soil_moisture_folder / self.settings.soil_moisture_depth_file)
+
+        # logging._zone_deptinfo(self.settings.soil_rooth_file)
+
+        # logging.info(soil_moisture_nc_file)
+        # logging.info(type(soil_moisture_nc_file))
 
         # Generate request for file from the AWO HTTP server
-        awra_l_url = self.settings.soil_moisture_awra_l_url + nc_soil_moisture_filename
+        awra_l_url = self.settings.soil_moisture_awra_l_url + soil_moisture_nc_filename
         response = requests.get(awra_l_url)
 
         if response.status_code == 200:
-            with open(nc_soil_moisture_file, "wb") as file:
+            with open(soil_moisture_nc_file, "wb") as file:
                 file.write(response.content)
-            logging.info("succesfully downloaded %s", nc_soil_moisture_filename)
+            logging.info("succesfully downloaded %s", soil_moisture_nc_filename)
 
-            # Create nc object from the .nc file
-            nc_data_obj = nc.Dataset(nc_soil_moisture_file)
+            # Open the NetCDF variable
+            soil_moisture_nc = gdal.Open(f'NETCDF:\"{soil_moisture_nc_file}\":sm_pct')
 
-            # Create a numpy array from the soil moisture values (most recent file)
-            soil_moisture_arr = np.asarray(nc_data_obj["sm_pct"][-1, :, :])
+            # Get the last band (latest time)
+            band = soil_moisture_nc.GetRasterBand(soil_moisture_nc.RasterCount)
 
-            # Create arrays for the lon and lat and find minu lon and min and max lat
-            Lon = nc_data_obj["longitude"][:]
-            Lat = nc_data_obj["latitude"][:]
-            LonMin, LatMax, LatMin = [Lon[:][0], Lat[:][0], Lat[:][-1]]
-            N_Lat = len(Lat)
+            # Save as GeoTIFF
+            gdal.Translate(str(soil_moisture_pct_tif_file), soil_moisture_nc, bandList=[soil_moisture_nc.RasterCount])
 
-            # Determine resolution (in degrees) of the lat and lon
-            Lat_Res = (LatMax - LatMin) / (float(N_Lat) - 1)
+            # the resolution and bounds of the depth of soil root zone
+            x_res = 80
+            y_res = 80
+            xmin = 388000
+            xmax = 523040
+            ymin = 7772960
+            ymax = 7918000
 
-            # Write header columns for the .asc
-            header = "ncols     %s\n" % soil_moisture_arr.shape[1]
-            header += "nrows    %s\n" % soil_moisture_arr.shape[0]
-            header += "xllcorner {}\n".format(LonMin)
-            header += "yllcorner {}\n".format(LatMin)
-            header += "cellsize {}\n".format(Lat_Res)
-            header += "NODATA_value -999\n"
+            # # Hardcoded bounds (in meters, EPSG:28355)
+            # left, bottom, right, top = 388000, 7772960, 523040, 7918000
 
-            # Time in the nc_file is days since 1900-01-01 - calculate date from soil moisture file
-            days_since_1900 = nc_data_obj["time"][-1].data.item()
-            base_date = datetime(1900, 1, 1)
-            target_date = base_date + timedelta(days=days_since_1900)
-            month, day = target_date.month, target_date.day
+            gdal.Warp(
+                str(soil_moisture_pct_reprojected_tif_file),
+                str(soil_moisture_pct_tif_file), 
+                srcSRS="EPSG:4326", 
+                dstSRS="EPSG:28355", 
+                outputBounds=(xmin, ymin, xmax, ymax),
+                xRes=x_res,
+                yRes=y_res,
+                resampleAlg="nearest")
 
-            # Save the soil moisture as an .asc with Lat Lon projection
-            np.savetxt(
-                nc_soil_moisture_file[:-3]
-                + f"_{str(month).zfill(2)}_{str(day).zfill(2)}.asc",
-                soil_moisture_arr,
-                header=header,
-                comments="",
-            )
+            # Input and output paths
+            r1 = gdal.Open(str(soil_moisture_pct_reprojected_tif_file))
+            r2 = gdal.Open(str(self.settings.soil_root_zone_depth_file))
+            out_path = str(soil_moisture_depth_tif_file)
 
-            # Close the nc files
-            nc_data_obj.close()
+            # Read arrays and NoData
+            a1 = r1.GetRasterBand(1)
+            a2 = r2.GetRasterBand(1)
+            d1 = a1.ReadAsArray()
+            d2 = a2.ReadAsArray()
+            nodata = a1.GetNoDataValue() or -9999
+
+            # Multiply with NoData mask
+            mask = (d1 != nodata) & (d2 != nodata)
+            result = np.full_like(d1, nodata, dtype=np.float32)
+            result[mask] = d1[mask] * d2[mask]
+
+            # Save result
+            driver = gdal.GetDriverByName("GTiff")
+            out = driver.Create(out_path, r1.RasterXSize, r1.RasterYSize, 1, gdal.GDT_Float32)
+            out.SetGeoTransform(r1.GetGeoTransform())
+            out.SetProjection(r1.GetProjection())
+            out.GetRasterBand(1).WriteArray(result)
+            out.GetRasterBand(1).SetNoDataValue(nodata)
+            out.FlushCache()
+
+            soil_moisture_nc = None
+            r1 = None
+            r2 = None
+            out = None
+
+            os.remove(soil_moisture_pct_tif_file)
+            os.remove(soil_moisture_pct_reprojected_tif_file)
 
         else:
-            logger.warning("Could not download %s", nc_soil_moisture_filename)
+            logger.warning("Could not download %s", soil_moisture_nc_filename)

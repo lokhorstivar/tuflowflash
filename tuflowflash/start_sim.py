@@ -150,6 +150,12 @@ def main(rainfall_mp_factor=1, settings=None):
         else:
             logger.info("not converting csv to boundary conditions, skipping..")
 
+        # Get AWLA-L Soil Moisture Info
+        if settings.get_soil_moisture:
+            data_prepper.get_soil_moisture()
+        else:
+            logger.info("not gathering bom soil moisture, skipping..")
+
         # run simulation
         if settings.run_simulation:
             tuflow_simulation = run_tuflow.TuflowSimulation(settings)

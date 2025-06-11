@@ -26,6 +26,8 @@ Tuflow_settings = {
     "archive_folder": Path,
     "soil_moisture_awra_l_url": str,
     "soil_moisture_folder": Path,
+    "soil_moisture_depth_file": Path,
+    "soil_root_zone_depth_file": Path,
     "projection": int,
     "pu": int,
 }
@@ -57,6 +59,8 @@ switches_settings = {
     "get_bom_forecast": bool,
     "get_bom_nowcast": bool,
     "use_bom_historical": bool,
+    "get_soil_moisture": bool,
+    "use_soil_moisture": bool,
     "run_simulation": bool,
     "post_to_lizard": bool,
     "archive_simulation": bool,
