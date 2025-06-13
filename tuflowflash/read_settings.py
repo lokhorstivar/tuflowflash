@@ -59,7 +59,6 @@ switches_settings = {
     "get_bom_forecast": bool,
     "get_bom_nowcast": bool,
     "use_bom_historical": bool,
-    "get_soil_moisture": bool,
     "use_soil_moisture": bool,
     "run_simulation": bool,
     "post_to_lizard": bool,

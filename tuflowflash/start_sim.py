@@ -151,7 +151,7 @@ def main(rainfall_mp_factor=1, settings=None):
             logger.info("not converting csv to boundary conditions, skipping..")
 
         # Soil moisture
-        if settings.get_soil_moisture:
+        if settings.use_soil_moisture:
             data_prepper.get_soil_moisture()
         else:
             logger.info("not gathering bom soil moisture, skipping..")
