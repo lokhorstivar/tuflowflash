@@ -546,12 +546,13 @@ class prepareData:
                 gdal.Translate(str(soil_moisture_pct_tif_file), soil_moisture_nc, bandList=[soil_moisture_nc.RasterCount])
 
                 # the resolution and bounds of the depth of soil root zone file
-                x_res = 80
-                y_res = 80
-                xmin = 388000
-                xmax = 523040
-                ymin = 7772960
-                ymax = 7918000
+                x_res = self.settings.soil_moisture_xres #80
+                y_res = self.settings.soil_moisture_yres #80
+                # the extent of the depth of soil root zone file
+                xmin = self.settings.soil_moisture_xmin #388000
+                xmax = self.settings.soil_moisture_xmax #523040
+                ymin = self.settings.soil_moisture_ymin #7772960
+                ymax = self.settings.soil_moisture_ymax #7918000
 
                 # Warp the moisture_pct to the same extent and projection as the soil root zone file
                 gdal.Warp(
