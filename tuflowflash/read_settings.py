@@ -28,6 +28,12 @@ Tuflow_settings = {
     "soil_moisture_folder": Path,
     "soil_moisture_depth_file": Path,
     "soil_root_zone_depth_file": Path,
+    "soil_moisture_xres": int,
+    "soil_moisture_yres": int,
+    "soil_moisture_xmin": int,
+    "soil_moisture_ymin": int,
+    "soil_moisture_xmax": int,
+    "soil_moisture_ymax": int,
     "projection": int,
     "pu": int,
 }
