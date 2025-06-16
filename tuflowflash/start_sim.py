@@ -158,6 +158,12 @@ def main(rainfall_mp_factor=1, settings=None):
 
         logger.info("run simulation..")
 
+        # Soil moisture
+        if settings.use_soil_moisture:
+            data_prepper.get_soil_moisture()
+        else:
+            logger.info("not gathering bom soil moisture, skipping..")
+
         # run simulation
         if settings.run_simulation:
             tuflow_simulation = run_tuflow.TuflowSimulation(settings)
