@@ -392,10 +392,11 @@ class prepareData:
         logger.debug("Wrote new time-index-only netcdf to %s", dest_file)
 
     def reproject_bom(self, x, y):
-        transformer = Transformer.from_proj(
-            Proj("epsg:4326"), Proj("epsg:{}".format(self.settings.projection))
-        )
-        x2, y2 = transformer.transform(y, x)
+        transformer_a = Transformer.from_proj(Proj("epsg:4326"), Proj("epsg:3857"))
+        transformer_b = Transformer.from_proj(Proj("epsg:3857"), Proj("epsg:{}".format(self.settings.projection)))
+        x1, y1  = transformer_a.transform(y, x)
+        x2, y2 = transformer_b.transform(y1, x1)
+
         return x2, y2
 
     def forecast_nowcast_netcdf_to_ascii(

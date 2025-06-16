@@ -192,7 +192,7 @@ class impactModule:
             bounds =box(*tuple(src.bounds))
             
         vulnerable_buildings_results = vulnerable_buildings_results.clip(bounds)
-        print(waterlevel_raster, type(waterlevel_raster))
+     
         output_filename = waterlevel_raster.as_posix().replace(".tif", "_buildings.gpkg")
         vulnerable_buildings_results.to_file(
             str(output_filename), layer="vulnerable_buildings"

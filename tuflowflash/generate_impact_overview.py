@@ -2528,10 +2528,11 @@ class CreateReport:
 
             y = self.pdf.y + 5
 
-    def save_report(self):
-        output_path = os.path.join(r"D:\FLASH\01_Modelling\impact_module\output\factsheet_big.pdf")
-        output_path_compressed = os.path.join(r"D:\FLASH\01_Modelling\impact_module\output\factsheet.pdf")
-        
+    def save_report(self, destination_folder: Path):
+        dt_now = datetime.datetime.now().strftime("%Y_%m_%d_%H%M")
+        output_path = destination_folder / "TEMP_FACTSHEET.pdf"
+        output_path_compressed = destination_folder / f"townsville_factsheet_{dt_now}.pdf"
+
         self.pdf.output(output_path, "F")
         
         writer = PdfWriter(clone_from=output_path)
@@ -2544,6 +2545,7 @@ class CreateReport:
         with open(output_path_compressed, "wb") as f:
             writer.write(f)
 
+        output_path.unlink()
     
 if __name__ == "__main__":
     cm = CreateReport(

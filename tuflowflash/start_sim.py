@@ -115,7 +115,6 @@ def main(rainfall_mp_factor=1, settings=None):
         else:
             logger.info("not gathering bom forecast rainfall data, skipping..")
 
-        logger.info("past edits")
         if settings.get_bom_nowcast:
             data_prepper.get_precipitation_nowcast()
         else:

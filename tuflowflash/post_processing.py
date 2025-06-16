@@ -31,7 +31,7 @@ RASTER_SOURCES_URL = (
 gdal.SetConfigOption("GDAL_HTTP_UNSAFESSL", "YES")
 TIMESERIES_URL = "https://rhdhv.lizard.net/api/v4/timeseries/"
 
-MAXWAITTIME_RASTER_UPLOAD = 240
+MAXWAITTIME_RASTER_UPLOAD = 10
 
 
 class ProcessFlash:
@@ -40,28 +40,37 @@ class ProcessFlash:
 
     def process_tuflow(self):
         #self.convert_flt_to_tiff()
+        logger.info("Converting Tuflow results to tiff")
         self.project_geotiff_rasters()
         logger.info("Tuflow results converted to tiff")
+
         if hasattr(self.settings, "waterlevel_result_uuid_file"):
             self.post_timeseries()
 
+        logger.info("Tuflow Timeseries posted to Lizard")
+
         if hasattr(self.settings, "waterdepth_raster_upload_list"):
+            logger.info("Creating waterdepth upload list")
             waterdepth_filenames, timestamps = self.select_rasters_to_upload(
                 self.settings.waterdepth_raster_upload_list
             )
+            logger.info("Posting temporal waterdepth rasters to Lizard")
             self.post_temporal_raster_to_lizard(
                 waterdepth_filenames, self.settings.depth_raster_uuid, timestamps
             )
 
         if hasattr(self.settings, "waterlevel_raster_upload_list"):
+            logger.info("Creating waterlevel upload list")
             filenames, timestamps = self.select_rasters_to_upload(
                 self.settings.waterlevel_raster_upload_list
             )
+            logger.info("Posting temporal waterlevel rasters to Lizard")
             self.post_temporal_raster_to_lizard(
                 filenames, self.settings.waterlevel_raster_uuid, timestamps
             )
 
         if self.settings.determine_impact:
+            logger.info("Determining impact")
             # convert waterdepth filenames to waterlevel filenames at that timestamp
             waterlevel_filenames = [f.replace("_d_HR_", "_h_HR_") for f in waterdepth_filenames]
             self.process_waterlevel_to_impact(waterlevel_filenames)
@@ -105,23 +114,13 @@ class ProcessFlash:
         dem_path = r"..\model\DEM\2012_w2018_19_Clipped_grid_DTM_LiDAR_v1.tif"
 
         max_waterlevel_raster = Path(f"{waterlevel_filenames[0].split('h_HR')[0]}h_HR_Max.tif").resolve()
-
+        
+        # save max waterlevelraster for factsheet generation
         shutil.copy(max_waterlevel_raster, Path(r"D:\FLASH\01_Modelling\impact_module\input\latest_max_wl_rasters") / max_waterlevel_raster.name)
-        # building_path_factsheet = impact_module.determine_vulnerability_buildings(
-        #     buildings, max_waterlevel_raster, reference_level_column_name="FLOOR"
-        # )
-        # evacuation_centre_path_factsheet = impact_module.determine_vulnerability_evacuation_centres(
-        #     evacuation_centres, max_waterlevel_raster, reference_level_column_name="Floor_Leve"
-        # )
-        # road_closure_point_path_factsheet = impact_module.determine_vulnerability_road_closure_points(
-        #     road_closure_points, max_waterlevel_raster, reference_level_column_name="ROAD_LEVEL"
-        # )
-        # council_assets_path_factsheet = impact_module.determine_vulnerability_council_assets(
-        #     council_assets, max_waterlevel_raster
-        # )
-        impact_vector_merged = impact_output_files / "impact_vector_factsheet.gpkg"
 
-        logger.info("Creating impact vector")
+        # impact_vector_merged = impact_output_files / "impact_vector_factsheet.gpkg"
+
+        # logger.info("Creating impact vector")
 
         # impact_module.create_impact_vector(
         #     layer_dict={
@@ -499,10 +498,11 @@ class ProcessFlash:
         }
         raster_url = RASTER_SOURCES_URL + raster_uuid + "/"
         url = raster_url + "data/"
-
+        
         requests.delete(url=url, headers=json_headers)
-
+    
         for file_name, timestamp in zip(filenames, timestamps):
+            logger.info(f"Posting {file_name} - {timestamp}")
             timestamp_utc = timestamp.astimezone(timezone.utc)
 
             lizard_timestamp_utc = timestamp_utc.strftime("%Y-%m-%dT%H:00:00Z")
@@ -520,6 +520,7 @@ class ProcessFlash:
             waittime = 0
             while (requests.get(url=r.json()["url"]).json()["status"] not in ["SUCCESS", "FAILURE"]) and (waittime <= MAXWAITTIME_RASTER_UPLOAD):
                 x = requests.get(url=r.json()["url"]).json()["status"]
+   
                 waittime += 10
                 sleep(10)
         return
