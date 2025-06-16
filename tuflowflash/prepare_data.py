@@ -545,7 +545,7 @@ class prepareData:
         df.set_index("Time (hrs)", inplace=True)
         df.to_csv(self.settings.rain_grids_csv)
 
-    def download_soil_moisture(self):
+    def get_soil_moisture(self):
         
         # Create timezone objecty of Sydney Australia
         aus_tz = pytz.timezone("Australia/Sydney")
